@@ -304,6 +304,13 @@ function Dashboard() {
           </motion.section>
         </div>
 
+        {/* TOPICS + DOCS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TopicsEditor />
+          <IntegrationDocs />
+        </div>
+
+
         <footer className="pt-2 pb-6 text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
           Bike IoT Control Center · {new Date().getFullYear()}
         </footer>
