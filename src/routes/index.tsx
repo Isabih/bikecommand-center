@@ -9,7 +9,7 @@ import {
   Footprints,
   Gauge,
   Heart,
-  Pause,
+  
   Play,
   PlayCircle,
   Power,
