@@ -24,6 +24,8 @@ import { BikeVisual } from "@/components/bike/BikeVisual";
 import { ControlButton } from "@/components/bike/ControlButton";
 import { SpeedGauge } from "@/components/bike/SpeedGauge";
 import { TelemetryCard } from "@/components/bike/TelemetryCard";
+import { TopicsEditor } from "@/components/bike/TopicsEditor";
+import { IntegrationDocs } from "@/components/bike/IntegrationDocs";
 import { useBikeSocket } from "@/hooks/use-bike-socket";
 import { bikeApi } from "@/lib/bike-api";
 import { cn } from "@/lib/utils";
