@@ -24,6 +24,8 @@ import { BikeVisual } from "@/components/bike/BikeVisual";
 import { ControlButton } from "@/components/bike/ControlButton";
 import { SpeedGauge } from "@/components/bike/SpeedGauge";
 import { TelemetryCard } from "@/components/bike/TelemetryCard";
+import { TopicsEditor } from "@/components/bike/TopicsEditor";
+import { IntegrationDocs } from "@/components/bike/IntegrationDocs";
 import { useBikeSocket } from "@/hooks/use-bike-socket";
 import { bikeApi } from "@/lib/bike-api";
 import { cn } from "@/lib/utils";
@@ -301,6 +303,13 @@ function Dashboard() {
             <TelemetryCard label="Heartbeat" value={telemetry.heartbeat} icon={Heart} accent="red" />
           </motion.section>
         </div>
+
+        {/* TOPICS + DOCS */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TopicsEditor />
+          <IntegrationDocs />
+        </div>
+
 
         <footer className="pt-2 pb-6 text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
           Bike IoT Control Center · {new Date().getFullYear()}
