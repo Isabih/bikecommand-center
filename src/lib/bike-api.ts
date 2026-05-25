@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 import { API_BASE } from "./bike-types";
 
 async function post(path: string) {
@@ -7,9 +8,14 @@ async function post(path: string) {
 }
 
 export interface TopicConfig {
+  id: string;
   name: string;
   topic: string;
-  description?: string;
+  description: string | null;
+  direction: "sub" | "pub" | "both";
+  last_seen_at: string | null;
+  last_payload: string | null;
+  updated_at: string;
 }
 
 export const bikeApi = {
@@ -17,24 +23,52 @@ export const bikeApi = {
   stopBike: () => post("/bike/stop"),
   startSimulation: () => post("/simulation/start"),
   stopSimulation: () => post("/simulation/stop"),
-  getTopics: async (): Promise<TopicConfig[]> => {
-    const res = await fetch(`${API_BASE}/topics`);
-    if (!res.ok) throw new Error(`GET /topics failed: ${res.status}`);
-    const data = await res.json();
-    // Accept either an array of {name, topic} or a {name: topic} map
-    if (Array.isArray(data)) return data;
-    return Object.entries(data as Record<string, string>).map(([name, topic]) => ({
-      name,
-      topic: String(topic),
-    }));
+
+  listTopics: async (): Promise<TopicConfig[]> => {
+    const { data, error } = await supabase
+      .from("mqtt_topics")
+      .select("*")
+      .order("name");
+    if (error) throw error;
+    return (data ?? []) as TopicConfig[];
   },
-  updateTopic: async (name: string, topic: string) => {
-    const res = await fetch(`${API_BASE}/topics/${encodeURIComponent(name)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic }),
-    });
-    if (!res.ok) throw new Error(`PUT /topics/${name} failed: ${res.status}`);
-    return res.json().catch(() => ({}));
+
+  createTopic: async (input: {
+    name: string;
+    topic: string;
+    description?: string;
+    direction?: "sub" | "pub" | "both";
+  }) => {
+    const { data, error } = await supabase
+      .from("mqtt_topics")
+      .insert({
+        name: input.name,
+        topic: input.topic,
+        description: input.description ?? null,
+        direction: input.direction ?? "sub",
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as TopicConfig;
+  },
+
+  updateTopic: async (
+    id: string,
+    patch: Partial<Pick<TopicConfig, "name" | "topic" | "description" | "direction">>,
+  ) => {
+    const { data, error } = await supabase
+      .from("mqtt_topics")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as TopicConfig;
+  },
+
+  deleteTopic: async (id: string) => {
+    const { error } = await supabase.from("mqtt_topics").delete().eq("id", id);
+    if (error) throw error;
   },
 };
