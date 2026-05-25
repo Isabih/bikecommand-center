@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      mqtt_topics: {
+        Row: {
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          last_payload: string | null
+          last_seen_at: string | null
+          name: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          last_payload?: string | null
+          last_seen_at?: string | null
+          name: string
+          topic: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          last_payload?: string | null
+          last_seen_at?: string | null
+          name?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
