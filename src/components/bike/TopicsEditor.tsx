@@ -50,7 +50,7 @@ function DirectionPill({ direction }: { direction: Direction }) {
   );
 }
 
-export function TopicsEditor() {
+export function TopicsEditor({ bikeId }: { bikeId?: string } = {}) {
   const [topics, setTopics] = useState<TopicConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function TopicsEditor() {
     setLoading(true);
     setError(null);
     try {
-      const list = await bikeApi.listTopics();
+      const list = await bikeApi.listTopics(bikeId);
       setTopics(list);
     } catch (e) {
       setError((e as Error).message);
@@ -84,7 +84,8 @@ export function TopicsEditor() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bikeId]);
 
   // Realtime: push updates to last_seen / CRUD
   useEffect(() => {
