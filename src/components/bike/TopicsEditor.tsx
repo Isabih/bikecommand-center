@@ -90,16 +90,18 @@ export function TopicsEditor({ bikeId }: { bikeId?: string } = {}) {
   // Realtime: push updates to last_seen / CRUD
   useEffect(() => {
     const channel = supabase
-      .channel("mqtt_topics_changes")
+      .channel(`mqtt_topics_changes_${bikeId ?? "all"}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "mqtt_topics" }, (payload) => {
         setTopics((prev) => {
           if (payload.eventType === "INSERT") {
             const row = payload.new as TopicConfig;
+            if (bikeId && row.bike_id !== bikeId) return prev;
             if (prev.some((t) => t.id === row.id)) return prev;
             return [...prev, row].sort((a, b) => a.name.localeCompare(b.name));
           }
           if (payload.eventType === "UPDATE") {
             const row = payload.new as TopicConfig;
+            if (bikeId && row.bike_id !== bikeId) return prev.filter((t) => t.id !== row.id);
             return prev.map((t) => (t.id === row.id ? row : t));
           }
           if (payload.eventType === "DELETE") {
@@ -113,7 +115,7 @@ export function TopicsEditor({ bikeId }: { bikeId?: string } = {}) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [bikeId]);
 
   // Tick once a second to refresh "x seconds ago"
   useEffect(() => {
