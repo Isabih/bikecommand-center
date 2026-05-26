@@ -181,6 +181,7 @@ export function TopicsEditor({ bikeId }: { bikeId?: string } = {}) {
     setCreating(true);
     try {
       await bikeApi.createTopic({
+        bike_id: bikeId ?? null,
         name: newDraft.name.trim(),
         topic: newDraft.topic.trim(),
         description: newDraft.description.trim() || undefined,
