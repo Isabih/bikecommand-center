@@ -50,7 +50,7 @@ function DirectionPill({ direction }: { direction: Direction }) {
   );
 }
 
-export function TopicsEditor() {
+export function TopicsEditor({ bikeId }: { bikeId?: string } = {}) {
   const [topics, setTopics] = useState<TopicConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +73,7 @@ export function TopicsEditor() {
     setLoading(true);
     setError(null);
     try {
-      const list = await bikeApi.listTopics();
+      const list = await bikeApi.listTopics(bikeId);
       setTopics(list);
     } catch (e) {
       setError((e as Error).message);
@@ -84,21 +84,24 @@ export function TopicsEditor() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bikeId]);
 
   // Realtime: push updates to last_seen / CRUD
   useEffect(() => {
     const channel = supabase
-      .channel("mqtt_topics_changes")
+      .channel(`mqtt_topics_changes_${bikeId ?? "all"}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "mqtt_topics" }, (payload) => {
         setTopics((prev) => {
           if (payload.eventType === "INSERT") {
             const row = payload.new as TopicConfig;
+            if (bikeId && row.bike_id !== bikeId) return prev;
             if (prev.some((t) => t.id === row.id)) return prev;
             return [...prev, row].sort((a, b) => a.name.localeCompare(b.name));
           }
           if (payload.eventType === "UPDATE") {
             const row = payload.new as TopicConfig;
+            if (bikeId && row.bike_id !== bikeId) return prev.filter((t) => t.id !== row.id);
             return prev.map((t) => (t.id === row.id ? row : t));
           }
           if (payload.eventType === "DELETE") {
@@ -112,7 +115,7 @@ export function TopicsEditor() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [bikeId]);
 
   // Tick once a second to refresh "x seconds ago"
   useEffect(() => {
@@ -178,6 +181,7 @@ export function TopicsEditor() {
     setCreating(true);
     try {
       await bikeApi.createTopic({
+        bike_id: bikeId ?? null,
         name: newDraft.name.trim(),
         topic: newDraft.topic.trim(),
         description: newDraft.description.trim() || undefined,

@@ -1,320 +1,209 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import {
-  Activity,
-  Bike,
-  CircleDot,
-  Cpu,
-  Flame,
-  Footprints,
-  Gauge,
-  Heart,
-  
-  Play,
-  PlayCircle,
-  Power,
-  Radio,
-  Square,
-  StopCircle,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { BikeVisual } from "@/components/bike/BikeVisual";
-import { ControlButton } from "@/components/bike/ControlButton";
-import { SpeedGauge } from "@/components/bike/SpeedGauge";
-import { TelemetryCard } from "@/components/bike/TelemetryCard";
-import { TopicsEditor } from "@/components/bike/TopicsEditor";
-import { IntegrationDocs } from "@/components/bike/IntegrationDocs";
-import { useBikeSocket } from "@/hooks/use-bike-socket";
+import { Bike as BikeIcon, ChevronRight, Cpu, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { bikeApi } from "@/lib/bike-api";
+import type { Bike } from "@/lib/bike-types";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
-  component: Dashboard,
+  component: BikesIndex,
   head: () => ({
     meta: [
-      { title: "Bike IoT Control Center — Real-time Telemetry Dashboard" },
+      { title: "Registered Bikes — IoT Control Center" },
       {
         name: "description",
-        content:
-          "Futuristic real-time IoT dashboard to control and monitor bike telemetry: speed, ignition, brakes, indicators and leg sensors over MQTT and WebSocket.",
+        content: "Register and select a bike to start its telemetry session.",
       },
     ],
   }),
 });
 
-function StatusBadge({
-  ok,
-  label,
-  icon: Icon,
-}: {
-  ok: boolean;
-  label: string;
-  icon: typeof Wifi;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] font-medium transition-all",
-        ok
-          ? "neon-text-green border-[oklch(0.85_0.22_150/0.45)] bg-[oklch(0.85_0.22_150/0.06)]"
-          : "neon-text-red border-[oklch(0.7_0.26_25/0.45)] bg-[oklch(0.7_0.26_25/0.06)]",
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      <span>{label}</span>
-      <span className={cn("h-1.5 w-1.5 rounded-full", ok ? "bg-current animate-pulse-dot" : "bg-current")} />
-    </div>
-  );
-}
+function BikesIndex() {
+  const [bikes, setBikes] = useState<Bike[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ name: "", esp32_id: "", description: "" });
+  const [creating, setCreating] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-function Dashboard() {
-  const { telemetry, wsState, lastUpdate, heartbeatTick } = useBikeSocket();
-  const [bikeActive, setBikeActive] = useState(false);
-  const [simActive, setSimActive] = useState(false);
+  const load = async () => {
+    setLoading(true);
+    try {
+      setBikes(await bikeApi.listBikes());
+    } catch (e) {
+      toast.error("Failed to load bikes", { description: (e as Error).message });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // heartbeat flash
-  const [pulse, setPulse] = useState(false);
   useEffect(() => {
-    if (heartbeatTick === 0) return;
-    setPulse(true);
-    const id = setTimeout(() => setPulse(false), 250);
-    return () => clearTimeout(id);
-  }, [heartbeatTick]);
+    load();
+    const ch = supabase
+      .channel("bikes_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bikes" }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, []);
 
-  const mode: "IDLE" | "ACTIVE" | "SIMULATION" = simActive
-    ? "SIMULATION"
-    : bikeActive
-    ? "ACTIVE"
-    : "IDLE";
+  const create = async () => {
+    if (!draft.name.trim() || !draft.esp32_id.trim()) {
+      toast.error("Name and ESP32 ID are required");
+      return;
+    }
+    setCreating(true);
+    try {
+      const b = await bikeApi.createBike({
+        name: draft.name.trim(),
+        esp32_id: draft.esp32_id.trim(),
+        description: draft.description.trim() || undefined,
+      });
+      toast.success(`Registered "${b.name}"`);
+      setDraft({ name: "", esp32_id: "", description: "" });
+      setAdding(false);
+      navigate({ to: "/bikes/$id", params: { id: b.id } });
+    } catch (e) {
+      toast.error("Register failed", { description: (e as Error).message });
+    } finally {
+      setCreating(false);
+    }
+  };
 
-  const wsOk = wsState === "connected";
-  const mqttOk = wsOk; // backend MQTT health proxied via WS connectivity heuristic
-
-  const lastUpdateText = useMemo(() => {
-    if (!lastUpdate) return "—";
-    const d = new Date(lastUpdate);
-    return d.toLocaleTimeString();
-  }, [lastUpdate]);
+  const remove = async (b: Bike) => {
+    if (!confirm(`Delete bike "${b.name}"? This will remove its topics and history.`)) return;
+    setBusyId(b.id);
+    try {
+      await bikeApi.deleteBike(b.id);
+      toast.success(`Deleted "${b.name}"`);
+    } catch (e) {
+      toast.error("Delete failed", { description: (e as Error).message });
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
-    <div className="min-h-screen relative">
-      {/* subtle grid background */}
-      <div className="pointer-events-none fixed inset-0 grid-bg opacity-[0.35]" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.85_0.18_200/0.08),transparent_60%)]" />
-
-      {/* HEADER */}
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/40 border-b border-white/5">
-        <div className="mx-auto max-w-[1500px] px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 rounded-xl glass-panel grid place-items-center neon-text-cyan">
-              <Bike className="h-5 w-5" />
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[oklch(0.85_0.22_150)] shadow-[0_0_10px_oklch(0.85_0.22_150)] animate-pulse-dot" />
-            </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-semibold tracking-tight">
-                Bike <span className="neon-text-cyan">IoT</span> Control Center
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
-                ITS Apaforme · Telemetry v1
-              </p>
-            </div>
-          </div>
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <StatusBadge ok={wsOk} label={`WiFi ${wsOk ? "Online" : "Offline"}`} icon={wsOk ? Wifi : WifiOff} />
-            <StatusBadge ok={mqttOk} label={`MQTT ${mqttOk ? "Linked" : "Down"}`} icon={Radio} />
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <span
-                className={cn(
-                  "h-2 w-2 rounded-full transition-all",
-                  pulse ? "bg-[oklch(0.85_0.18_200)] shadow-[0_0_10px_oklch(0.85_0.18_200)]" : "bg-white/20",
-                )}
-              />
-              Live
-            </div>
-          </div>
+    <main className="mx-auto max-w-[1500px] px-4 sm:px-6 py-8 relative space-y-6">
+      <motion.section
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-wrap items-end justify-between gap-4"
+      >
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Bike Registry</h1>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground mt-1">
+            Register a bike, then start a session to receive live telemetry on its topics.
+          </p>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-[1500px] px-4 sm:px-6 py-6 space-y-6 relative">
-        {/* TOP SYSTEM STATUS BAR */}
-        <motion.section
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-panel rounded-2xl px-5 py-4 grid grid-cols-2 md:grid-cols-4 gap-4"
+        <button
+          onClick={() => setAdding((v) => !v)}
+          className={cn(
+            "inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-[11px] uppercase tracking-[0.2em] transition-all",
+            adding
+              ? "border-white/10 bg-white/5 text-muted-foreground"
+              : "border-[oklch(0.85_0.22_150/0.5)] bg-[oklch(0.85_0.22_150/0.08)] neon-text-green hover:bg-[oklch(0.85_0.22_150/0.16)]",
+          )}
         >
-          <div className="flex items-center gap-3">
-            <Cpu className="h-4 w-4 neon-text-cyan" />
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Backend</div>
-              <div className={cn("text-sm font-semibold", wsOk ? "neon-text-green" : "neon-text-red")}>
-                {wsState === "connecting" ? "Connecting…" : wsOk ? "Online" : "Disconnected"}
-              </div>
-            </div>
+          <Plus className="h-4 w-4" />
+          {adding ? "Cancel" : "Register Bike"}
+        </button>
+      </motion.section>
+
+      {adding && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel rounded-2xl p-5 grid grid-cols-1 md:grid-cols-3 gap-3"
+        >
+          <input
+            placeholder="Bike name (e.g. Test Bike #1)"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            className="bg-transparent border border-white/10 rounded-md px-3 py-2 text-sm outline-none focus:border-[oklch(0.85_0.22_150/0.6)]"
+          />
+          <input
+            placeholder="ESP32 ID (matches device payload)"
+            value={draft.esp32_id}
+            onChange={(e) => setDraft({ ...draft, esp32_id: e.target.value })}
+            className="bg-transparent border border-white/10 rounded-md px-3 py-2 text-sm font-mono outline-none focus:border-[oklch(0.85_0.22_150/0.6)]"
+          />
+          <input
+            placeholder="Description (optional)"
+            value={draft.description}
+            onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+            className="bg-transparent border border-white/10 rounded-md px-3 py-2 text-sm outline-none focus:border-[oklch(0.85_0.22_150/0.6)]"
+          />
+          <div className="md:col-span-3 flex justify-end">
+            <button
+              onClick={create}
+              disabled={creating}
+              className="inline-flex items-center gap-2 rounded-md border border-[oklch(0.85_0.22_150/0.5)] bg-[oklch(0.85_0.22_150/0.12)] neon-text-green px-4 py-2 text-[11px] uppercase tracking-[0.2em] hover:bg-[oklch(0.85_0.22_150/0.2)] disabled:opacity-50"
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Register
+            </button>
           </div>
-          <div className="flex items-center gap-3">
-            <Radio className="h-4 w-4 neon-text-cyan" />
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">MQTT Bridge</div>
-              <div className={cn("text-sm font-semibold", mqttOk ? "neon-text-green" : "neon-text-red")}>
-                {mqttOk ? "Linked" : "Offline"}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Activity className="h-4 w-4 neon-text-cyan" />
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Last Update</div>
-              <div className="text-sm font-semibold tabular-nums">{lastUpdateText}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Gauge className="h-4 w-4 neon-text-cyan" />
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">System Mode</div>
-              <div
-                className={cn(
-                  "text-sm font-semibold",
-                  mode === "IDLE" && "text-muted-foreground",
-                  mode === "ACTIVE" && "neon-text-green",
-                  mode === "SIMULATION" && "text-[oklch(0.78_0.18_250)]",
+        </motion.div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin inline" />
+        </div>
+      ) : bikes.length === 0 ? (
+        <div className="glass-panel rounded-2xl p-10 text-center">
+          <BikeIcon className="h-10 w-10 mx-auto neon-text-cyan opacity-60" />
+          <h2 className="mt-3 text-lg font-semibold">No bikes registered yet</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Click <b>Register Bike</b> to add your first one.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {bikes.map((b) => (
+            <motion.div
+              key={b.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel rounded-2xl p-5 hover:border-[oklch(0.85_0.18_200/0.4)] transition-all group relative"
+            >
+              <Link to="/bikes/$id" params={{ id: b.id }} className="block">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl glass-panel grid place-items-center neon-text-cyan">
+                    <BikeIcon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold truncate">{b.name}</h3>
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Cpu className="h-3 w-3" />
+                      <span className="font-mono normal-case tracking-normal">{b.esp32_id}</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:neon-text-cyan group-hover:translate-x-0.5 transition-all" />
+                </div>
+                {b.description && (
+                  <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{b.description}</p>
                 )}
+              </Link>
+              <button
+                onClick={() => remove(b)}
+                disabled={busyId === b.id}
+                className="absolute top-3 right-3 inline-flex items-center justify-center h-7 w-7 rounded-md border border-[oklch(0.7_0.26_25/0.3)] bg-[oklch(0.7_0.26_25/0.04)] neon-text-red opacity-0 group-hover:opacity-100 hover:bg-[oklch(0.7_0.26_25/0.14)] disabled:opacity-50"
+                aria-label="Delete"
               >
-                {mode}
-              </div>
-            </div>
-          </div>
-        </motion.section>
-
-        {/* MAIN GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* LEFT - Controls */}
-          <motion.section
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-3 glass-panel rounded-2xl p-5 space-y-3"
-          >
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.25em] neon-text-cyan">Control</h2>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Panel</span>
-            </div>
-            <ControlButton
-              label="START BIKE SESSION"
-              icon={Play}
-              variant="green"
-              active={bikeActive}
-              successMsg="Bike session started"
-              onAction={async () => {
-                await bikeApi.startBike();
-                setBikeActive(true);
-              }}
-            />
-            <ControlButton
-              label="STOP BIKE SESSION"
-              icon={Square}
-              variant="red"
-              active={!bikeActive && !simActive ? false : false}
-              successMsg="Bike session stopped"
-              onAction={async () => {
-                await bikeApi.stopBike();
-                setBikeActive(false);
-              }}
-            />
-            <div className="my-2 h-px bg-white/5" />
-            <ControlButton
-              label="START SIMULATION"
-              icon={PlayCircle}
-              variant="blue"
-              active={simActive}
-              successMsg="Simulation started"
-              onAction={async () => {
-                await bikeApi.startSimulation();
-                setSimActive(true);
-              }}
-            />
-            <ControlButton
-              label="STOP SIMULATION"
-              icon={StopCircle}
-              variant="gray"
-              successMsg="Simulation stopped"
-              onAction={async () => {
-                await bikeApi.stopSimulation();
-                setSimActive(false);
-              }}
-            />
-          </motion.section>
-
-          {/* CENTER - Bike visual */}
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="lg:col-span-6 glass-panel rounded-2xl p-5 relative overflow-hidden"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.25em] neon-text-cyan">Live Bike</h2>
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                <Heart className={cn("h-3.5 w-3.5", telemetry.heartbeat ? "neon-text-red" : "")} />
-                Heartbeat
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full",
-                    telemetry.heartbeat
-                      ? "bg-[oklch(0.7_0.26_25)] shadow-[0_0_10px_oklch(0.7_0.26_25)] animate-pulse-dot"
-                      : "bg-white/15",
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <SpeedGauge speed={telemetry.speed} />
-            </div>
-
-            <div className="mt-6">
-              <BikeVisual t={telemetry} />
-            </div>
-
-            {/* scanning overlay */}
-            <div className="pointer-events-none absolute inset-0 opacity-20 mix-blend-screen">
-              <div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-[oklch(0.85_0.18_200)] to-transparent"
-                style={{ animation: "scan-line 6s linear infinite", top: 0 }}
-              />
-            </div>
-          </motion.section>
-
-          {/* RIGHT - telemetry */}
-          <motion.section
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="lg:col-span-3 glass-panel rounded-2xl p-5 space-y-3"
-          >
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.25em] neon-text-cyan">Telemetry</h2>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live</span>
-            </div>
-            <TelemetryCard label="Speed" value={telemetry.speed.toFixed(1)} unit="km/h" icon={Gauge} accent="cyan" />
-            <TelemetryCard label="Ignition" value={telemetry.ignition} icon={Power} accent="green" />
-            <TelemetryCard label="Brake" value={telemetry.brake} icon={CircleDot} accent="red" />
-            <TelemetryCard label="Left Indicator" value={telemetry.left_indicator} icon={Flame} accent="amber" />
-            <TelemetryCard label="Right Indicator" value={telemetry.right_indicator} icon={Flame} accent="amber" />
-            <TelemetryCard label="Left Leg" value={telemetry.left_leg} icon={Footprints} accent="cyan" />
-            <TelemetryCard label="Right Leg" value={telemetry.right_leg} icon={Footprints} accent="cyan" />
-            <TelemetryCard label="Heartbeat" value={telemetry.heartbeat} icon={Heart} accent="red" />
-          </motion.section>
+                {busyId === b.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              </button>
+            </motion.div>
+          ))}
         </div>
-
-        {/* TOPICS + DOCS */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TopicsEditor />
-          <IntegrationDocs />
-        </div>
-
-
-        <footer className="pt-2 pb-6 text-center text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-          Bike IoT Control Center · {new Date().getFullYear()}
-        </footer>
-      </main>
-    </div>
+      )}
+    </main>
   );
 }

@@ -14,8 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      bikes: {
+        Row: {
+          created_at: string
+          description: string | null
+          esp32_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          esp32_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          esp32_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mqtt_topics: {
         Row: {
+          bike_id: string | null
           created_at: string
           description: string | null
           direction: string
@@ -27,6 +55,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bike_id?: string | null
           created_at?: string
           description?: string | null
           direction?: string
@@ -38,6 +67,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bike_id?: string | null
           created_at?: string
           description?: string | null
           direction?: string
@@ -48,7 +78,47 @@ export type Database = {
           topic?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mqtt_topics_bike_id_fkey"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telemetry_events: {
+        Row: {
+          bike_id: string | null
+          id: string
+          payload: Json | null
+          received_at: string
+          topic: string
+        }
+        Insert: {
+          bike_id?: string | null
+          id?: string
+          payload?: Json | null
+          received_at?: string
+          topic: string
+        }
+        Update: {
+          bike_id?: string | null
+          id?: string
+          payload?: Json | null
+          received_at?: string
+          topic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_events_bike_id_fkey"
+            columns: ["bike_id"]
+            isOneToOne: false
+            referencedRelation: "bikes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -3,7 +3,11 @@ import { WS_URL, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types"
 
 export type ConnState = "connecting" | "connected" | "disconnected";
 
-export function useBikeSocket() {
+/**
+ * Connects to the FastAPI WebSocket and aggregates the live telemetry stream.
+ * When `esp32Id` is provided, only messages with a matching `esp32_id` are accepted.
+ */
+export function useBikeSocket(esp32Id?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
   const [wsState, setWsState] = useState<ConnState>("connecting");
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
@@ -29,6 +33,7 @@ export function useBikeSocket() {
         ws.onmessage = (ev) => {
           try {
             const data = JSON.parse(ev.data) as Partial<BikeTelemetry>;
+            if (esp32Id && data.esp32_id && data.esp32_id !== esp32Id) return;
             setTelemetry((prev) => ({ ...prev, ...data }));
             setLastUpdate(Date.now());
             setHeartbeatTick((t) => t + 1);
@@ -47,7 +52,7 @@ export function useBikeSocket() {
       if (retryRef.current) clearTimeout(retryRef.current);
       wsRef.current?.close();
     };
-  }, []);
+  }, [esp32Id]);
 
   return { telemetry, wsState, lastUpdate, heartbeatTick };
 }

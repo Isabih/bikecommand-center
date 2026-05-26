@@ -7,6 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { Bike, BookOpen, Home } from "lucide-react";
 
 import appCss from "../styles.css?url";
 
@@ -72,21 +73,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { title: "Bike IoT Control Center" },
+      { name: "description", content: "Real-time IoT dashboard for bike telemetry over MQTT." },
     ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -109,13 +99,72 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
+
+function NavLink({
+  to,
+  icon: Icon,
+  label,
+  exact,
+}: {
+  to: string;
+  icon: typeof Home;
+  label: string;
+  exact?: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      activeOptions={{ exact: !!exact }}
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] transition-all",
+        "border-white/8 bg-white/[0.02] text-muted-foreground hover:text-foreground hover:border-white/15",
+      )}
+      activeProps={{
+        className:
+          "border-[oklch(0.85_0.18_200/0.5)] bg-[oklch(0.85_0.18_200/0.08)] neon-text-cyan",
+      }}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </Link>
+  );
+}
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <div className="min-h-screen relative">
+        <div className="pointer-events-none fixed inset-0 grid-bg opacity-[0.3]" />
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.85_0.18_200/0.08),transparent_60%)]" />
+
+        <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/40 border-b border-white/5">
+          <div className="mx-auto max-w-[1500px] px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="relative h-10 w-10 rounded-xl glass-panel grid place-items-center neon-text-cyan">
+                <Bike className="h-5 w-5" />
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[oklch(0.85_0.22_150)] shadow-[0_0_10px_oklch(0.85_0.22_150)] animate-pulse-dot" />
+              </div>
+              <div>
+                <h1 className="text-base sm:text-lg font-semibold tracking-tight">
+                  Bike <span className="neon-text-cyan">IoT</span> Control Center
+                </h1>
+                <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+                  ITS Apaforme · Telemetry v1
+                </p>
+              </div>
+            </Link>
+            <nav className="ml-auto flex items-center gap-2 flex-wrap">
+              <NavLink to="/" icon={Home} label="Bikes" exact />
+              <NavLink to="/docs" icon={BookOpen} label="Docs" />
+            </nav>
+          </div>
+        </header>
+
+        <Outlet />
+      </div>
       <Toaster richColors theme="dark" position="top-right" />
     </QueryClientProvider>
   );

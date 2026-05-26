@@ -24,6 +24,15 @@ export const INITIAL_TELEMETRY: BikeTelemetry = {
 
 export type SystemMode = "IDLE" | "ACTIVE" | "SIMULATION";
 
+export interface Bike {
+  id: string;
+  name: string;
+  esp32_id: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const API_BASE =
   (typeof window !== "undefined" &&
     (window as unknown as { __BIKE_API__?: string }).__BIKE_API__) ||

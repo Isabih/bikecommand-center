@@ -9,38 +9,74 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BikesIdRouteImport } from './routes/bikes.$id'
+import { Route as BikesIdTopicsRouteImport } from './routes/bikes.$id.topics'
 
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BikesIdRoute = BikesIdRouteImport.update({
+  id: '/bikes/$id',
+  path: '/bikes/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BikesIdTopicsRoute = BikesIdTopicsRouteImport.update({
+  id: '/topics',
+  path: '/topics',
+  getParentRoute: () => BikesIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/bikes/$id': typeof BikesIdRouteWithChildren
+  '/bikes/$id/topics': typeof BikesIdTopicsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/bikes/$id': typeof BikesIdRouteWithChildren
+  '/bikes/$id/topics': typeof BikesIdTopicsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/docs': typeof DocsRoute
+  '/bikes/$id': typeof BikesIdRouteWithChildren
+  '/bikes/$id/topics': typeof BikesIdTopicsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/docs' | '/bikes/$id' | '/bikes/$id/topics'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/docs' | '/bikes/$id' | '/bikes/$id/topics'
+  id: '__root__' | '/' | '/docs' | '/bikes/$id' | '/bikes/$id/topics'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DocsRoute: typeof DocsRoute
+  BikesIdRoute: typeof BikesIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +84,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bikes/$id': {
+      id: '/bikes/$id'
+      path: '/bikes/$id'
+      fullPath: '/bikes/$id'
+      preLoaderRoute: typeof BikesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bikes/$id/topics': {
+      id: '/bikes/$id/topics'
+      path: '/topics'
+      fullPath: '/bikes/$id/topics'
+      preLoaderRoute: typeof BikesIdTopicsRouteImport
+      parentRoute: typeof BikesIdRoute
+    }
   }
 }
 
+interface BikesIdRouteChildren {
+  BikesIdTopicsRoute: typeof BikesIdTopicsRoute
+}
+
+const BikesIdRouteChildren: BikesIdRouteChildren = {
+  BikesIdTopicsRoute: BikesIdTopicsRoute,
+}
+
+const BikesIdRouteWithChildren =
+  BikesIdRoute._addFileChildren(BikesIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DocsRoute: DocsRoute,
+  BikesIdRoute: BikesIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
