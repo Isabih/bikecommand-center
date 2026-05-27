@@ -26,9 +26,11 @@ import { ControlButton } from "@/components/bike/ControlButton";
 import { SpeedGauge } from "@/components/bike/SpeedGauge";
 import { TelemetryCard } from "@/components/bike/TelemetryCard";
 import { LiveTopicTable } from "@/components/bike/LiveTopicTable";
+import { ModeBadge } from "@/components/bike/ModeBadge";
 import { useBikeSocket } from "@/hooks/use-bike-socket";
 import { bikeApi } from "@/lib/bike-api";
-import type { Bike } from "@/lib/bike-types";
+import { supabase } from "@/integrations/supabase/client";
+import type { Bike, SystemMode } from "@/lib/bike-types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/bikes/$id")({
