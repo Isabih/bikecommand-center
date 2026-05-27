@@ -213,15 +213,8 @@ function BikeDashboard() {
           <Power className="h-4 w-4 neon-text-cyan" />
           <div>
             <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Mode</div>
-            <div
-              className={cn(
-                "text-sm font-semibold",
-                mode === "IDLE" && "text-muted-foreground",
-                mode === "ACTIVE" && "neon-text-green",
-                mode === "SIMULATION" && "text-[oklch(0.78_0.18_250)]",
-              )}
-            >
-              {mode}
+            <div className="mt-1">
+              <ModeBadge mode={mode} size="sm" />
             </div>
           </div>
         </div>
