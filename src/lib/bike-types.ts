@@ -29,6 +29,8 @@ export interface Bike {
   name: string;
   esp32_id: string;
   description: string | null;
+  session_mode: SystemMode;
+  session_started_at: string | null;
   created_at: string;
   updated_at: string;
 }
