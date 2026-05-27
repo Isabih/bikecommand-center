@@ -73,8 +73,6 @@ function BikeDashboard() {
   const navigate = useNavigate();
   const [bike, setBike] = useState<Bike | null>(null);
   const [loadingBike, setLoadingBike] = useState(true);
-  const [bikeActive, setBikeActive] = useState(false);
-  const [simActive, setSimActive] = useState(false);
 
   useEffect(() => {
     let canceled = false;
@@ -95,6 +93,22 @@ function BikeDashboard() {
     };
   }, [id, navigate]);
 
+  // Realtime subscription on this bike row so session_mode updates live everywhere
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`bike_row_${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bikes", filter: `id=eq.${id}` },
+        (payload) => setBike(payload.new as Bike),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [id]);
+
   const { telemetry, wsState, lastUpdate, heartbeatTick } = useBikeSocket(bike?.esp32_id);
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
@@ -104,11 +118,9 @@ function BikeDashboard() {
     return () => clearTimeout(t);
   }, [heartbeatTick]);
 
-  const mode: "IDLE" | "ACTIVE" | "SIMULATION" = simActive
-    ? "SIMULATION"
-    : bikeActive
-    ? "ACTIVE"
-    : "IDLE";
+  const mode: SystemMode = (bike?.session_mode as SystemMode) ?? "IDLE";
+  const bikeActive = mode === "ACTIVE";
+  const simActive = mode === "SIMULATION";
 
   const wsOk = wsState === "connected";
   const lastUpdateText = useMemo(
