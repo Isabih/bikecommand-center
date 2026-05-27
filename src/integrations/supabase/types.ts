@@ -21,6 +21,8 @@ export type Database = {
           esp32_id: string
           id: string
           name: string
+          session_mode: string
+          session_started_at: string | null
           updated_at: string
         }
         Insert: {
@@ -29,6 +31,8 @@ export type Database = {
           esp32_id: string
           id?: string
           name: string
+          session_mode?: string
+          session_started_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -37,6 +41,8 @@ export type Database = {
           esp32_id?: string
           id?: string
           name?: string
+          session_mode?: string
+          session_started_at?: string | null
           updated_at?: string
         }
         Relationships: []
