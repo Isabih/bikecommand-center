@@ -69,6 +69,8 @@ function BikeTopicsPage() {
         <TopicsEditor bikeId={bike.id} />
         <LiveTopicTable bikeId={bike.id} />
       </div>
+
+      <TopicDebugTable bikeId={bike.id} />
     </main>
   );
 }
