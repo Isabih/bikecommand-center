@@ -41,9 +41,20 @@ export function SpeedGauge({ speed, max = 120 }: Props) {
 
   // ticks
   const ticks = Array.from({ length: 13 }, (_, i) => i); // 0..120 step 10
+  const intensity = pct > 0.8 ? "red" : pct > 0.5 ? "amber" : pct > 0.05 ? "cyan" : "idle";
+  const glowClass =
+    intensity === "red"
+      ? "animate-glow-red"
+      : intensity === "amber"
+      ? "animate-glow-amber"
+      : intensity === "cyan"
+      ? "animate-glow-cyan"
+      : "";
+
   return (
-    <div className="relative flex items-center justify-center">
+    <div className={`relative flex items-center justify-center rounded-full ${glowClass}`} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="overflow-visible">
+
         <defs>
           <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="oklch(0.85 0.22 150)" />
