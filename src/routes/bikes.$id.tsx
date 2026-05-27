@@ -26,9 +26,11 @@ import { ControlButton } from "@/components/bike/ControlButton";
 import { SpeedGauge } from "@/components/bike/SpeedGauge";
 import { TelemetryCard } from "@/components/bike/TelemetryCard";
 import { LiveTopicTable } from "@/components/bike/LiveTopicTable";
+import { ModeBadge } from "@/components/bike/ModeBadge";
 import { useBikeSocket } from "@/hooks/use-bike-socket";
 import { bikeApi } from "@/lib/bike-api";
-import type { Bike } from "@/lib/bike-types";
+import { supabase } from "@/integrations/supabase/client";
+import type { Bike, SystemMode } from "@/lib/bike-types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/bikes/$id")({
@@ -71,8 +73,6 @@ function BikeDashboard() {
   const navigate = useNavigate();
   const [bike, setBike] = useState<Bike | null>(null);
   const [loadingBike, setLoadingBike] = useState(true);
-  const [bikeActive, setBikeActive] = useState(false);
-  const [simActive, setSimActive] = useState(false);
 
   useEffect(() => {
     let canceled = false;
@@ -93,6 +93,22 @@ function BikeDashboard() {
     };
   }, [id, navigate]);
 
+  // Realtime subscription on this bike row so session_mode updates live everywhere
+  useEffect(() => {
+    if (!id) return;
+    const ch = supabase
+      .channel(`bike_row_${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "bikes", filter: `id=eq.${id}` },
+        (payload) => setBike(payload.new as Bike),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [id]);
+
   const { telemetry, wsState, lastUpdate, heartbeatTick } = useBikeSocket(bike?.esp32_id);
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
@@ -102,11 +118,9 @@ function BikeDashboard() {
     return () => clearTimeout(t);
   }, [heartbeatTick]);
 
-  const mode: "IDLE" | "ACTIVE" | "SIMULATION" = simActive
-    ? "SIMULATION"
-    : bikeActive
-    ? "ACTIVE"
-    : "IDLE";
+  const mode: SystemMode = (bike?.session_mode as SystemMode) ?? "IDLE";
+  const bikeActive = mode === "ACTIVE";
+  const simActive = mode === "SIMULATION";
 
   const wsOk = wsState === "connected";
   const lastUpdateText = useMemo(
@@ -137,7 +151,10 @@ function BikeDashboard() {
           <ArrowLeft className="h-3.5 w-3.5" /> Bikes
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold truncate">{bike.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-lg font-semibold truncate">{bike.name}</h1>
+            <ModeBadge mode={mode} size="sm" />
+          </div>
           <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground flex items-center gap-1 mt-0.5">
             <Cpu className="h-3 w-3" />
             <span className="font-mono normal-case tracking-normal">{bike.esp32_id}</span>
@@ -196,15 +213,8 @@ function BikeDashboard() {
           <Power className="h-4 w-4 neon-text-cyan" />
           <div>
             <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Mode</div>
-            <div
-              className={cn(
-                "text-sm font-semibold",
-                mode === "IDLE" && "text-muted-foreground",
-                mode === "ACTIVE" && "neon-text-green",
-                mode === "SIMULATION" && "text-[oklch(0.78_0.18_250)]",
-              )}
-            >
-              {mode}
+            <div className="mt-1">
+              <ModeBadge mode={mode} size="sm" />
             </div>
           </div>
         </div>
@@ -229,7 +239,6 @@ function BikeDashboard() {
             successMsg="Bike session started"
             onAction={async () => {
               await bikeApi.startBike(bike.id);
-              setBikeActive(true);
             }}
           />
           <ControlButton
@@ -239,7 +248,6 @@ function BikeDashboard() {
             successMsg="Bike session stopped"
             onAction={async () => {
               await bikeApi.stopBike(bike.id);
-              setBikeActive(false);
             }}
           />
           <div className="my-2 h-px bg-white/5" />
@@ -251,7 +259,6 @@ function BikeDashboard() {
             successMsg="Simulation started"
             onAction={async () => {
               await bikeApi.startSimulation(bike.id);
-              setSimActive(true);
             }}
           />
           <ControlButton
@@ -261,7 +268,6 @@ function BikeDashboard() {
             successMsg="Simulation stopped"
             onAction={async () => {
               await bikeApi.stopSimulation(bike.id);
-              setSimActive(false);
             }}
           />
         </motion.section>

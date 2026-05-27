@@ -3,6 +3,7 @@ import { ArrowLeft, Cpu, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { TopicsEditor } from "@/components/bike/TopicsEditor";
 import { LiveTopicTable } from "@/components/bike/LiveTopicTable";
+import { TopicDebugTable } from "@/components/bike/TopicDebugTable";
 import { bikeApi } from "@/lib/bike-api";
 import type { Bike } from "@/lib/bike-types";
 
@@ -68,6 +69,8 @@ function BikeTopicsPage() {
         <TopicsEditor bikeId={bike.id} />
         <LiveTopicTable bikeId={bike.id} />
       </div>
+
+      <TopicDebugTable bikeId={bike.id} />
     </main>
   );
 }

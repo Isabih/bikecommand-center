@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { bikeApi } from "@/lib/bike-api";
 import type { Bike } from "@/lib/bike-types";
 import { supabase } from "@/integrations/supabase/client";
+import { ModeBadge } from "@/components/bike/ModeBadge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -191,6 +192,9 @@ function BikesIndex() {
                 {b.description && (
                   <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{b.description}</p>
                 )}
+                <div className="mt-3">
+                  <ModeBadge mode={(b.session_mode as never) ?? "IDLE"} size="sm" />
+                </div>
               </Link>
               <button
                 onClick={() => remove(b)}
