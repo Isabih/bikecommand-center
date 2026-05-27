@@ -1,14 +1,32 @@
 import { supabase } from "@/integrations/supabase/client";
-import { API_BASE, type Bike } from "./bike-types";
+import { API_BASE, type Bike, type SystemMode } from "./bike-types";
 
 async function post(path: string) {
-  const res = await fetch(`${API_BASE}${path}`, { method: "POST" });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
-  return res.json().catch(() => ({}));
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { method: "POST" });
+    if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+    return res.json().catch(() => ({}));
+  } catch (e) {
+    // Backend may be offline during dev; allow DB mode update to still succeed
+    console.warn(`[bike-api] ${path} unreachable:`, (e as Error).message);
+    return {};
+  }
 }
 
 function q(bikeId?: string) {
   return bikeId ? `?bike_id=${encodeURIComponent(bikeId)}` : "";
+}
+
+async function setMode(bikeId: string | undefined, mode: SystemMode) {
+  if (!bikeId) return;
+  const { error } = await supabase
+    .from("bikes")
+    .update({
+      session_mode: mode,
+      session_started_at: mode === "IDLE" ? null : new Date().toISOString(),
+    })
+    .eq("id", bikeId);
+  if (error) throw error;
 }
 
 export interface TopicConfig {
