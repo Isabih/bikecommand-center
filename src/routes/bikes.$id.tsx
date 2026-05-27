@@ -243,7 +243,6 @@ function BikeDashboard() {
             successMsg="Bike session started"
             onAction={async () => {
               await bikeApi.startBike(bike.id);
-              setBikeActive(true);
             }}
           />
           <ControlButton
@@ -253,7 +252,6 @@ function BikeDashboard() {
             successMsg="Bike session stopped"
             onAction={async () => {
               await bikeApi.stopBike(bike.id);
-              setBikeActive(false);
             }}
           />
           <div className="my-2 h-px bg-white/5" />
@@ -265,7 +263,6 @@ function BikeDashboard() {
             successMsg="Simulation started"
             onAction={async () => {
               await bikeApi.startSimulation(bike.id);
-              setSimActive(true);
             }}
           />
           <ControlButton
@@ -275,7 +272,6 @@ function BikeDashboard() {
             successMsg="Simulation stopped"
             onAction={async () => {
               await bikeApi.stopSimulation(bike.id);
-              setSimActive(false);
             }}
           />
         </motion.section>
