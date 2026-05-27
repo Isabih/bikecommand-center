@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { bikeApi } from "@/lib/bike-api";
 import type { Bike } from "@/lib/bike-types";
 import { supabase } from "@/integrations/supabase/client";
+import { ModeBadge } from "@/components/bike/ModeBadge";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
