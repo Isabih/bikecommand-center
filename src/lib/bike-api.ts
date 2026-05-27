@@ -43,10 +43,10 @@ export interface TopicConfig {
 
 export const bikeApi = {
   // Control (per-bike when provided; backend should publish on that bike's topics)
-  startBike: (bikeId?: string) => post(`/bike/start${q(bikeId)}`),
-  stopBike: (bikeId?: string) => post(`/bike/stop${q(bikeId)}`),
-  startSimulation: (bikeId?: string) => post(`/simulation/start${q(bikeId)}`),
-  stopSimulation: (bikeId?: string) => post(`/simulation/stop${q(bikeId)}`),
+  startBike: async (bikeId?: string) => { await post(`/bike/start${q(bikeId)}`); await setMode(bikeId, "ACTIVE"); },
+  stopBike: async (bikeId?: string) => { await post(`/bike/stop${q(bikeId)}`); await setMode(bikeId, "IDLE"); },
+  startSimulation: async (bikeId?: string) => { await post(`/simulation/start${q(bikeId)}`); await setMode(bikeId, "SIMULATION"); },
+  stopSimulation: async (bikeId?: string) => { await post(`/simulation/stop${q(bikeId)}`); await setMode(bikeId, "IDLE"); },
 
   // Bikes
   listBikes: async (): Promise<Bike[]> => {
