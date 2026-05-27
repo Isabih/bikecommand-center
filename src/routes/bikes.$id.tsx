@@ -151,7 +151,10 @@ function BikeDashboard() {
           <ArrowLeft className="h-3.5 w-3.5" /> Bikes
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold truncate">{bike.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-lg font-semibold truncate">{bike.name}</h1>
+            <ModeBadge mode={mode} size="sm" />
+          </div>
           <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground flex items-center gap-1 mt-0.5">
             <Cpu className="h-3 w-3" />
             <span className="font-mono normal-case tracking-normal">{bike.esp32_id}</span>
