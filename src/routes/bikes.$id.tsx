@@ -277,7 +277,11 @@ function BikeDashboard() {
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="lg:col-span-6 glass-panel rounded-2xl p-5 relative overflow-hidden"
+          className={cn(
+            "lg:col-span-6 glass-panel rounded-2xl p-5 relative overflow-hidden transition-colors",
+            bikeActive && "ring-1 ring-[oklch(0.85_0.22_150/0.35)] shadow-[0_0_40px_oklch(0.85_0.22_150/0.15)]",
+            simActive && "ring-1 ring-[oklch(0.72_0.22_250/0.4)] shadow-[0_0_40px_oklch(0.72_0.22_250/0.18)]",
+          )}
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold uppercase tracking-[0.25em] neon-text-cyan">Live Bike</h2>
@@ -294,7 +298,11 @@ function BikeDashboard() {
               />
             </div>
           </div>
-          <div className="flex flex-col items-center">
+
+          {/* 3D kiosk — physical bike with live sensor mapping */}
+          <Bike3D t={telemetry} mode={mode} />
+
+          <div className="mt-5 flex flex-col items-center">
             <SpeedGauge speed={telemetry.speed} />
           </div>
           <div className="mt-6">
