@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { BikeVisual } from "@/components/bike/BikeVisual";
+import { Bike3D } from "@/components/bike/Bike3D";
 import { ControlButton } from "@/components/bike/ControlButton";
 import { SpeedGauge } from "@/components/bike/SpeedGauge";
 import { TelemetryCard } from "@/components/bike/TelemetryCard";
