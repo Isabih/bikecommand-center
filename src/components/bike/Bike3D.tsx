@@ -158,16 +158,29 @@ function BikeMesh({ t, mode }: Props) {
     return ms / 0.55;
   }, [t.speed]);
 
-  // subtle idle wobble in IDLE; sim mode has dramatic float; active rides smoother
-  useFrame(({ clock }) => {
+  // Smoothed lean/pitch: lean forward proportional to speed, pitch up on brake.
+  const speedNorm = useRef(0);
+  const brakePulse = useRef(0);
+  useFrame(({ clock }, dt) => {
     if (!group.current) return;
     const e = clock.elapsedTime;
+
+    // low-pass speed normalization (0..1 over ~120 km/h)
+    const targetN = Math.min(1, t.speed / 120);
+    speedNorm.current += (targetN - speedNorm.current) * (1 - Math.exp(-dt * 3));
+
+    // brake-flash pulse oscillator (used by tail light material)
+    brakePulse.current = t.brake ? (Math.sin(e * 18) + 1) * 0.5 : 0;
+
+    const leanForward = -speedNorm.current * 0.06;
+    const brakePitch = t.brake ? 0.04 : 0;
+
     if (mode === "SIMULATION") {
       group.current.position.y = Math.sin(e * 2) * 0.08;
-      group.current.rotation.z = Math.sin(e * 1.2) * 0.04;
+      group.current.rotation.z = Math.sin(e * 1.2) * 0.04 + leanForward + brakePitch;
     } else if (mode === "ACTIVE") {
       group.current.position.y = Math.sin(e * 6) * 0.015;
-      group.current.rotation.z = 0;
+      group.current.rotation.z = leanForward + brakePitch;
     } else {
       group.current.position.y = 0;
       group.current.rotation.z = 0;
@@ -175,15 +188,11 @@ function BikeMesh({ t, mode }: Props) {
   });
 
   const ignitionGlow = t.ignition ? 1.6 : 0.05;
-  const brakeGlow = t.brake ? 2.2 : 0.05;
+  const brakeGlow = t.brake ? 2.6 : 0.05;
 
   return (
     <group ref={group} rotation={[0, -0.4, 0]}>
-      {/* shadow plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.72, 0]} receiveShadow>
-        <circleGeometry args={[2.5, 48]} />
-        <meshBasicMaterial color="#000" transparent opacity={0.35} />
-      </mesh>
+      {/* (real contact shadow rendered at Canvas level — no fake circle plane needed) */}
 
       {/* frame main beam */}
       <mesh position={[0, 0.05, 0]} rotation={[0, 0, -0.05]}>
