@@ -283,6 +283,15 @@ function BikeMesh({ t, mode }: Props) {
         <pointLight position={[-1.15, 0.32, 0]} color="#ff3030" intensity={3.5} distance={2.5} />
       )}
 
+      {/* body-mounted turn-signal panels — emissive amber strips along the fairing */}
+      {/* front tank flanks */}
+      <BodyBlinker position={[0.18, 0.28, 0.185]} size={[0.42, 0.08, 0.02]} active={t.right_indicator} />
+      <BodyBlinker position={[0.18, 0.28, -0.185]} size={[0.42, 0.08, 0.02]} active={t.left_indicator} />
+      {/* tail flanks */}
+      <BodyBlinker position={[-0.78, 0.3, 0.17]} size={[0.28, 0.06, 0.02]} active={t.right_indicator} />
+      <BodyBlinker position={[-0.78, 0.3, -0.17]} size={[0.28, 0.06, 0.02]} active={t.left_indicator} />
+
+
       {/* handlebars */}
       <mesh position={[0.78, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[0.025, 0.025, 0.55, 12]} />
