@@ -1,34 +1,50 @@
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   speed: number;
   max?: number;
+  /** Smoothing factor 0..1 — higher = snappier, lower = smoother. Default 0.12 */
+  smoothing?: number;
 }
 
-export function SpeedGauge({ speed, max = 120 }: Props) {
-  const clamped = Math.max(0, Math.min(speed, max));
-  const pct = clamped / max;
-  // arc from -135deg to +135deg (270deg sweep)
-  const angle = -135 + pct * 270;
+export function SpeedGauge({ speed, max = 120, smoothing = 0.12 }: Props) {
+  const target = Math.max(0, Math.min(speed, max));
 
-  // animated counter
-  const [display, setDisplay] = useState(clamped);
+  // Continuous rAF low-pass filter towards the latest streamed speed value.
+  // This avoids the "jumpy" needle when MQTT messages arrive irregularly.
+  const [display, setDisplay] = useState(target);
+  const displayRef = useRef(target);
+  const targetRef = useRef(target);
+
   useEffect(() => {
-    const start = display;
-    const delta = clamped - start;
-    const dur = 400;
-    const t0 = performance.now();
+    targetRef.current = target;
+  }, [target]);
+
+  useEffect(() => {
     let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - t0) / dur);
-      setDisplay(start + delta * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) raf = requestAnimationFrame(tick);
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      // Frame-rate independent exponential smoothing
+      const alpha = 1 - Math.pow(1 - smoothing, dt * 60);
+      const next = displayRef.current + (targetRef.current - displayRef.current) * alpha;
+      const snapped = Math.abs(next - targetRef.current) < 0.02 ? targetRef.current : next;
+      if (snapped !== displayRef.current) {
+        displayRef.current = snapped;
+        setDisplay(snapped);
+      }
+      raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clamped]);
+  }, [smoothing]);
+
+  const clamped = display;
+  const pct = clamped / max;
+  // arc from -135deg to +135deg (270deg sweep)
+  const angle = -135 + pct * 270;
 
   const size = 260;
   const r = 110;
