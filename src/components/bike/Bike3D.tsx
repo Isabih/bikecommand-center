@@ -169,6 +169,38 @@ function LegSensor({
   );
 }
 
+// Amber emissive panel on the bike body that blinks in sync with a turn signal.
+function BodyBlinker({
+  position,
+  size,
+  active,
+}: {
+  position: [number, number, number];
+  size: [number, number, number];
+  active: boolean;
+}) {
+  const mat = useRef<THREE.MeshStandardMaterial>(null!);
+  useFrame(({ clock }) => {
+    if (!mat.current) return;
+    const phase = active ? (Math.sin(clock.elapsedTime * 8) > 0 ? 1 : 0) : 0;
+    mat.current.emissiveIntensity = active ? 0.15 + phase * 2.4 : 0.04;
+  });
+  return (
+    <mesh position={position}>
+      <boxGeometry args={size} />
+      <meshStandardMaterial
+        ref={mat}
+        color="#3a2a10"
+        emissive={COL.amber}
+        emissiveIntensity={0.04}
+        metalness={0.6}
+        roughness={0.3}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
 function BikeMesh({ t, mode }: Props) {
   const group = useRef<THREE.Group>(null!);
   // wheel rotation speed: km/h to rad/s, wheel radius ~0.55m
@@ -250,6 +282,15 @@ function BikeMesh({ t, mode }: Props) {
       {t.brake && (
         <pointLight position={[-1.15, 0.32, 0]} color="#ff3030" intensity={3.5} distance={2.5} />
       )}
+
+      {/* body-mounted turn-signal panels — emissive amber strips along the fairing */}
+      {/* front tank flanks */}
+      <BodyBlinker position={[0.18, 0.28, 0.185]} size={[0.42, 0.08, 0.02]} active={t.right_indicator} />
+      <BodyBlinker position={[0.18, 0.28, -0.185]} size={[0.42, 0.08, 0.02]} active={t.left_indicator} />
+      {/* tail flanks */}
+      <BodyBlinker position={[-0.78, 0.3, 0.17]} size={[0.28, 0.06, 0.02]} active={t.right_indicator} />
+      <BodyBlinker position={[-0.78, 0.3, -0.17]} size={[0.28, 0.06, 0.02]} active={t.left_indicator} />
+
 
       {/* handlebars */}
       <mesh position={[0.78, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
