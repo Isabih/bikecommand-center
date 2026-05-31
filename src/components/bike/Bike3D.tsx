@@ -313,15 +313,25 @@ export function Bike3D({ t, mode }: Props) {
         shadows
         dpr={[1, 2]}
         camera={{ position: [2.4, 1.4, 3.2], fov: 38 }}
-        gl={{ antialias: true, alpha: false }}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       >
         <color attach="background" args={["#070b13"]} />
         <ModeBackdrop mode={mode} />
-        <ambientLight intensity={0.35} />
-        <directionalLight position={[4, 6, 3]} intensity={0.8} castShadow />
-        <directionalLight position={[-4, 2, -3]} intensity={0.3} color="#8AB4FF" />
+        <ambientLight intensity={0.45} />
+        <directionalLight position={[4, 6, 3]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[-4, 2, -3]} intensity={0.4} color="#8AB4FF" />
         <Suspense fallback={null}>
+          <Environment preset="city" />
           <BikeMesh t={t} mode={mode} />
+          <ContactShadows
+            position={[0, -0.72, 0]}
+            opacity={0.55}
+            scale={6}
+            blur={2.6}
+            far={2}
+            resolution={512}
+            color="#000000"
+          />
         </Suspense>
         <OrbitControls
           enablePan={false}
