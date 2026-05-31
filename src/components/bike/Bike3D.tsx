@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { OrbitControls, Html, ContactShadows, Environment } from "@react-three/drei";
 import { Suspense, useRef, useMemo } from "react";
 import * as THREE from "three";
 import type { BikeTelemetry, SystemMode } from "@/lib/bike-types";
