@@ -89,22 +89,41 @@ function Indicator({
   color: THREE.Color;
 }) {
   const ref = useRef<THREE.MeshStandardMaterial>(null!);
+  const lightRef = useRef<THREE.PointLight>(null!);
+  const haloRef = useRef<THREE.MeshBasicMaterial>(null!);
+  // square-wave blinker @ ~2.5Hz (real turn signal feel)
   useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const t = active ? (Math.sin(clock.elapsedTime * 8) + 1) * 0.5 : 0;
-    ref.current.emissiveIntensity = active ? 0.6 + t * 2.2 : 0.05;
+    const phase = active ? (Math.sin(clock.elapsedTime * 8) > 0 ? 1 : 0) : 0;
+    if (ref.current) ref.current.emissiveIntensity = active ? 0.4 + phase * 3.2 : 0.04;
+    if (lightRef.current) lightRef.current.intensity = active ? phase * 2.6 : 0;
+    if (haloRef.current) haloRef.current.opacity = active ? phase * 0.55 : 0;
   });
   return (
-    <mesh position={position}>
-      <sphereGeometry args={[0.09, 16, 16]} />
-      <meshStandardMaterial
-        ref={ref}
-        color={active ? color : "#2a3142"}
-        emissive={color}
-        emissiveIntensity={0.05}
-        toneMapped={false}
-      />
-    </mesh>
+    <group position={position}>
+      <mesh>
+        <sphereGeometry args={[0.09, 16, 16]} />
+        <meshStandardMaterial
+          ref={ref}
+          color={active ? color : "#2a3142"}
+          emissive={color}
+          emissiveIntensity={0.05}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* soft halo billboard */}
+      <mesh>
+        <sphereGeometry args={[0.18, 16, 16]} />
+        <meshBasicMaterial
+          ref={haloRef}
+          color={color}
+          transparent
+          opacity={0}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+      <pointLight ref={lightRef} color={color} intensity={0} distance={1.6} decay={2} />
+    </group>
   );
 }
 
