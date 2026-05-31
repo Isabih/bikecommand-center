@@ -29,34 +29,51 @@ function Wheel({
   brake: boolean;
 }) {
   const ref = useRef<THREE.Group>(null!);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.x += spinSpeed * dt;
+  const currentSpeed = useRef(0);
+  const rimMat = useRef<THREE.MeshStandardMaterial>(null!);
+  useFrame(({ clock }, dt) => {
+    // low-pass filter wheel angular velocity — smooth accel/decel
+    const target = brake ? spinSpeed * 0.35 : spinSpeed;
+    const alpha = 1 - Math.exp(-dt * (brake ? 6 : 2.5));
+    currentSpeed.current += (target - currentSpeed.current) * alpha;
+    if (ref.current) ref.current.rotation.x += currentSpeed.current * dt;
+    if (rimMat.current) {
+      const pulse = brake ? (Math.sin(clock.elapsedTime * 14) + 1) * 0.5 : 0;
+      rimMat.current.emissiveIntensity = brake ? 1.4 + pulse * 1.4 : 0.4;
+    }
   });
   return (
     <group position={position}>
       {/* tire */}
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <torusGeometry args={[0.55, 0.16, 16, 48]} />
-        <meshStandardMaterial color="#0d1219" roughness={0.85} metalness={0.2} />
+      <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+        <torusGeometry args={[0.55, 0.16, 24, 64]} />
+        <meshStandardMaterial color="#0d1219" roughness={0.9} metalness={0.15} />
       </mesh>
       {/* rim + spokes */}
       <group ref={ref}>
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <torusGeometry args={[0.36, 0.04, 12, 32]} />
+          <torusGeometry args={[0.36, 0.04, 16, 48]} />
           <meshStandardMaterial
-            color={brake ? "#ff5555" : "#8AB4FF"}
+            ref={rimMat}
+            color={brake ? "#ff7766" : "#8AB4FF"}
             emissive={brake ? COL.red : COL.blue}
             emissiveIntensity={brake ? 1.8 : 0.4}
-            metalness={0.7}
-            roughness={0.25}
+            metalness={0.85}
+            roughness={0.18}
+            toneMapped={false}
           />
         </mesh>
-        {[0, 1, 2, 3].map((i) => (
-          <mesh key={i} rotation={[i * (Math.PI / 4), 0, 0]}>
-            <boxGeometry args={[0.02, 0.7, 0.02]} />
-            <meshStandardMaterial color="#9aa6b8" metalness={0.6} roughness={0.4} />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <mesh key={i} rotation={[i * (Math.PI / 6), 0, 0]}>
+            <boxGeometry args={[0.018, 0.7, 0.018]} />
+            <meshStandardMaterial color="#b0bccc" metalness={0.75} roughness={0.3} />
           </mesh>
         ))}
+        {/* hub */}
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.06, 0.06, 0.12, 16]} />
+          <meshStandardMaterial color="#3a4252" metalness={0.9} roughness={0.25} />
+        </mesh>
       </group>
     </group>
   );
