@@ -137,7 +137,7 @@ export function SpeedGauge({ speed, max = 120, smoothing = 0.12 }: Props) {
         {/* needle */}
         <motion.g
           animate={{ rotate: angle }}
-          transition={{ type: "spring", stiffness: 80, damping: 14 }}
+          transition={{ type: "tween", ease: "linear", duration: 0.05 }}
           style={{ originX: `${cx}px`, originY: `${cy}px` }}
         >
           <line
