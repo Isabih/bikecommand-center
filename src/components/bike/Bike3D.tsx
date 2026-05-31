@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Html } from "@react-three/drei";
+import { OrbitControls, Html, ContactShadows, Environment } from "@react-three/drei";
 import { Suspense, useRef, useMemo } from "react";
 import * as THREE from "three";
 import type { BikeTelemetry, SystemMode } from "@/lib/bike-types";
@@ -29,34 +29,51 @@ function Wheel({
   brake: boolean;
 }) {
   const ref = useRef<THREE.Group>(null!);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.x += spinSpeed * dt;
+  const currentSpeed = useRef(0);
+  const rimMat = useRef<THREE.MeshStandardMaterial>(null!);
+  useFrame(({ clock }, dt) => {
+    // low-pass filter wheel angular velocity — smooth accel/decel
+    const target = brake ? spinSpeed * 0.35 : spinSpeed;
+    const alpha = 1 - Math.exp(-dt * (brake ? 6 : 2.5));
+    currentSpeed.current += (target - currentSpeed.current) * alpha;
+    if (ref.current) ref.current.rotation.x += currentSpeed.current * dt;
+    if (rimMat.current) {
+      const pulse = brake ? (Math.sin(clock.elapsedTime * 14) + 1) * 0.5 : 0;
+      rimMat.current.emissiveIntensity = brake ? 1.4 + pulse * 1.4 : 0.4;
+    }
   });
   return (
     <group position={position}>
       {/* tire */}
-      <mesh rotation={[0, 0, Math.PI / 2]}>
-        <torusGeometry args={[0.55, 0.16, 16, 48]} />
-        <meshStandardMaterial color="#0d1219" roughness={0.85} metalness={0.2} />
+      <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+        <torusGeometry args={[0.55, 0.16, 24, 64]} />
+        <meshStandardMaterial color="#0d1219" roughness={0.9} metalness={0.15} />
       </mesh>
       {/* rim + spokes */}
       <group ref={ref}>
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <torusGeometry args={[0.36, 0.04, 12, 32]} />
+          <torusGeometry args={[0.36, 0.04, 16, 48]} />
           <meshStandardMaterial
-            color={brake ? "#ff5555" : "#8AB4FF"}
+            ref={rimMat}
+            color={brake ? "#ff7766" : "#8AB4FF"}
             emissive={brake ? COL.red : COL.blue}
             emissiveIntensity={brake ? 1.8 : 0.4}
-            metalness={0.7}
-            roughness={0.25}
+            metalness={0.85}
+            roughness={0.18}
+            toneMapped={false}
           />
         </mesh>
-        {[0, 1, 2, 3].map((i) => (
-          <mesh key={i} rotation={[i * (Math.PI / 4), 0, 0]}>
-            <boxGeometry args={[0.02, 0.7, 0.02]} />
-            <meshStandardMaterial color="#9aa6b8" metalness={0.6} roughness={0.4} />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <mesh key={i} rotation={[i * (Math.PI / 6), 0, 0]}>
+            <boxGeometry args={[0.018, 0.7, 0.018]} />
+            <meshStandardMaterial color="#b0bccc" metalness={0.75} roughness={0.3} />
           </mesh>
         ))}
+        {/* hub */}
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.06, 0.06, 0.12, 16]} />
+          <meshStandardMaterial color="#3a4252" metalness={0.9} roughness={0.25} />
+        </mesh>
       </group>
     </group>
   );
@@ -141,16 +158,29 @@ function BikeMesh({ t, mode }: Props) {
     return ms / 0.55;
   }, [t.speed]);
 
-  // subtle idle wobble in IDLE; sim mode has dramatic float; active rides smoother
-  useFrame(({ clock }) => {
+  // Smoothed lean/pitch: lean forward proportional to speed, pitch up on brake.
+  const speedNorm = useRef(0);
+  const brakePulse = useRef(0);
+  useFrame(({ clock }, dt) => {
     if (!group.current) return;
     const e = clock.elapsedTime;
+
+    // low-pass speed normalization (0..1 over ~120 km/h)
+    const targetN = Math.min(1, t.speed / 120);
+    speedNorm.current += (targetN - speedNorm.current) * (1 - Math.exp(-dt * 3));
+
+    // brake-flash pulse oscillator (used by tail light material)
+    brakePulse.current = t.brake ? (Math.sin(e * 18) + 1) * 0.5 : 0;
+
+    const leanForward = -speedNorm.current * 0.06;
+    const brakePitch = t.brake ? 0.04 : 0;
+
     if (mode === "SIMULATION") {
       group.current.position.y = Math.sin(e * 2) * 0.08;
-      group.current.rotation.z = Math.sin(e * 1.2) * 0.04;
+      group.current.rotation.z = Math.sin(e * 1.2) * 0.04 + leanForward + brakePitch;
     } else if (mode === "ACTIVE") {
       group.current.position.y = Math.sin(e * 6) * 0.015;
-      group.current.rotation.z = 0;
+      group.current.rotation.z = leanForward + brakePitch;
     } else {
       group.current.position.y = 0;
       group.current.rotation.z = 0;
@@ -158,15 +188,11 @@ function BikeMesh({ t, mode }: Props) {
   });
 
   const ignitionGlow = t.ignition ? 1.6 : 0.05;
-  const brakeGlow = t.brake ? 2.2 : 0.05;
+  const brakeGlow = t.brake ? 2.6 : 0.05;
 
   return (
     <group ref={group} rotation={[0, -0.4, 0]}>
-      {/* shadow plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.72, 0]} receiveShadow>
-        <circleGeometry args={[2.5, 48]} />
-        <meshBasicMaterial color="#000" transparent opacity={0.35} />
-      </mesh>
+      {/* (real contact shadow rendered at Canvas level — no fake circle plane needed) */}
 
       {/* frame main beam */}
       <mesh position={[0, 0.05, 0]} rotation={[0, 0, -0.05]}>
@@ -194,14 +220,17 @@ function BikeMesh({ t, mode }: Props) {
 
       {/* tail / brake light */}
       <mesh position={[-0.92, 0.32, 0]}>
-        <boxGeometry args={[0.08, 0.12, 0.28]} />
+        <boxGeometry args={[0.08, 0.14, 0.32]} />
         <meshStandardMaterial
-          color={t.brake ? "#ff4040" : "#220a0a"}
+          color={t.brake ? "#ff5050" : "#220a0a"}
           emissive={COL.red}
           emissiveIntensity={brakeGlow}
           toneMapped={false}
         />
       </mesh>
+      {t.brake && (
+        <pointLight position={[-1.15, 0.32, 0]} color="#ff3030" intensity={3.5} distance={2.5} />
+      )}
 
       {/* handlebars */}
       <mesh position={[0.78, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -284,15 +313,25 @@ export function Bike3D({ t, mode }: Props) {
         shadows
         dpr={[1, 2]}
         camera={{ position: [2.4, 1.4, 3.2], fov: 38 }}
-        gl={{ antialias: true, alpha: false }}
+        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       >
         <color attach="background" args={["#070b13"]} />
         <ModeBackdrop mode={mode} />
-        <ambientLight intensity={0.35} />
-        <directionalLight position={[4, 6, 3]} intensity={0.8} castShadow />
-        <directionalLight position={[-4, 2, -3]} intensity={0.3} color="#8AB4FF" />
+        <ambientLight intensity={0.45} />
+        <directionalLight position={[4, 6, 3]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[-4, 2, -3]} intensity={0.4} color="#8AB4FF" />
         <Suspense fallback={null}>
+          <Environment preset="city" />
           <BikeMesh t={t} mode={mode} />
+          <ContactShadows
+            position={[0, -0.72, 0]}
+            opacity={0.55}
+            scale={6}
+            blur={2.6}
+            far={2}
+            resolution={512}
+            color="#000000"
+          />
         </Suspense>
         <OrbitControls
           enablePan={false}
