@@ -220,14 +220,17 @@ function BikeMesh({ t, mode }: Props) {
 
       {/* tail / brake light */}
       <mesh position={[-0.92, 0.32, 0]}>
-        <boxGeometry args={[0.08, 0.12, 0.28]} />
+        <boxGeometry args={[0.08, 0.14, 0.32]} />
         <meshStandardMaterial
-          color={t.brake ? "#ff4040" : "#220a0a"}
+          color={t.brake ? "#ff5050" : "#220a0a"}
           emissive={COL.red}
           emissiveIntensity={brakeGlow}
           toneMapped={false}
         />
       </mesh>
+      {t.brake && (
+        <pointLight position={[-1.15, 0.32, 0]} color="#ff3030" intensity={3.5} distance={2.5} />
+      )}
 
       {/* handlebars */}
       <mesh position={[0.78, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
