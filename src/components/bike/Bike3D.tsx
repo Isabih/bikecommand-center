@@ -7,7 +7,14 @@ import type { BikeTelemetry, SystemMode } from "@/lib/bike-types";
 interface Props {
   t: BikeTelemetry;
   mode: SystemMode;
+  /** "panel" (default, fixed 340px) or "fill" (absolute inset, fills parent). */
+  variant?: "panel" | "fill";
+  /** Slow cinematic camera float (kiosk mode). */
+  cinematic?: boolean;
+  /** Hide HUD corner labels. */
+  hideHud?: boolean;
 }
+
 
 // neon color palette aligned with the rest of the UI
 const COL = {
