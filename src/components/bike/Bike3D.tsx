@@ -399,60 +399,78 @@ function ModeBackdrop({ mode }: { mode: SystemMode }) {
   );
 }
 
-export function Bike3D({ t, mode }: Props) {
+function CameraFloat({ enabled }: { enabled: boolean }) {
+  useFrame(({ camera, clock }) => {
+    if (!enabled) return;
+    const e = clock.elapsedTime;
+    camera.position.y = 1.4 + Math.sin(e * 0.4) * 0.08;
+    camera.position.x = 2.4 + Math.sin(e * 0.25) * 0.12;
+    camera.lookAt(0, 0.2, 0);
+  });
+  return null;
+}
+
+export function Bike3D({ t, mode, variant = "panel", cinematic = false, hideHud = false }: Props) {
+  const wrap =
+    variant === "fill"
+      ? "absolute inset-0 overflow-hidden bg-[oklch(0.12_0.02_252)]"
+      : "relative h-[340px] w-full rounded-xl overflow-hidden border border-white/10 bg-[oklch(0.16_0.03_252)]";
   return (
-    <div className="relative h-[340px] w-full rounded-xl overflow-hidden border border-white/10 bg-[oklch(0.16_0.03_252)]">
+    <div className={wrap}>
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [2.4, 1.4, 3.2], fov: 38 }}
+        camera={{ position: [2.4, 1.4, 3.2], fov: cinematic ? 34 : 38 }}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       >
-        <color attach="background" args={["#070b13"]} />
+        <color attach="background" args={[cinematic ? "#050810" : "#070b13"]} />
         <ModeBackdrop mode={mode} />
-        <ambientLight intensity={0.45} />
-        <directionalLight position={[4, 6, 3]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
-        <directionalLight position={[-4, 2, -3]} intensity={0.4} color="#8AB4FF" />
+        <ambientLight intensity={cinematic ? 0.65 : 0.5} />
+        <directionalLight position={[4, 6, 3]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} />
+        <directionalLight position={[-4, 2, -3]} intensity={0.55} color="#8AB4FF" />
+        <directionalLight position={[0, 4, -4]} intensity={0.35} color="#7CE7FF" />
         <Suspense fallback={null}>
           <Environment preset="city" />
           <BikeMesh t={t} mode={mode} />
           <ContactShadows
             position={[0, -0.72, 0]}
-            opacity={0.55}
-            scale={6}
-            blur={2.6}
+            opacity={0.6}
+            scale={7}
+            blur={2.8}
             far={2}
-            resolution={512}
+            resolution={1024}
             color="#000000"
           />
         </Suspense>
+        <CameraFloat enabled={cinematic} />
         <OrbitControls
           enablePan={false}
           enableZoom
-          minDistance={2.8}
-          maxDistance={6}
+          minDistance={2.6}
+          maxDistance={6.5}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 2.05}
-          autoRotate={mode !== "IDLE"}
-          autoRotateSpeed={mode === "SIMULATION" ? 1.2 : 0.4}
+          autoRotate={cinematic || mode !== "IDLE"}
+          autoRotateSpeed={cinematic ? 0.6 : mode === "SIMULATION" ? 1.2 : 0.4}
         />
       </Canvas>
 
-      {/* HUD overlay corners */}
-      <div className="pointer-events-none absolute inset-0 p-3 flex flex-col justify-between">
-        <div className="flex justify-between text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-          <span className="neon-text-cyan">3D KIOSK</span>
-          <span>
-            {mode === "ACTIVE" ? "LIVE RIDE" : mode === "SIMULATION" ? "SIMULATING" : "STANDBY"}
-          </span>
+      {!hideHud && (
+        <div className="pointer-events-none absolute inset-0 p-3 flex flex-col justify-between">
+          <div className="flex justify-between text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+            <span className="neon-text-cyan">3D KIOSK</span>
+            <span>
+              {mode === "ACTIVE" ? "LIVE RIDE" : mode === "SIMULATION" ? "SIMULATING" : "STANDBY"}
+            </span>
+          </div>
+          <div className="flex justify-between text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+            <span>SPD {t.speed.toFixed(1)} km/h</span>
+            <span>{t.esp32_id}</span>
+          </div>
         </div>
-        <div className="flex justify-between text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-          <span>SPD {t.speed.toFixed(1)} km/h</span>
-          <span>{t.esp32_id}</span>
-        </div>
-      </div>
+      )}
 
-      {mode === "IDLE" && (
+      {mode === "IDLE" && !cinematic && (
         <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
           <div className="text-[11px] uppercase tracking-[0.35em] text-muted-foreground border border-white/10 px-4 py-2 rounded-full bg-black/40">
             Session idle — start to bring sensors live
@@ -462,3 +480,4 @@ export function Bike3D({ t, mode }: Props) {
     </div>
   );
 }
+
