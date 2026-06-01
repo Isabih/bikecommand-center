@@ -315,7 +315,33 @@ function BikeMesh({ t, mode }: Props) {
           toneMapped={false}
         />
       </mesh>
-      {t.ignition && <pointLight position={[1.1, 0.42, 0]} color="#fff0c0" intensity={2} distance={3} />}
+      {t.ignition && (
+        <>
+          <pointLight position={[1.1, 0.42, 0]} color="#fff0c0" intensity={2.4} distance={3.5} />
+          {/* headlight beam cone */}
+          <spotLight
+            position={[1.0, 0.42, 0]}
+            target-position={[3.5, 0.0, 0]}
+            angle={0.45}
+            penumbra={0.7}
+            intensity={3.2}
+            distance={5}
+            color="#fff4cc"
+            castShadow={false}
+          />
+          {/* dashboard / cluster glow panel above tank */}
+          <mesh position={[0.5, 0.52, 0]} rotation={[-0.35, 0, 0]}>
+            <boxGeometry args={[0.24, 0.02, 0.22]} />
+            <meshStandardMaterial
+              color="#0a1a2a"
+              emissive={COL.cyan}
+              emissiveIntensity={1.6}
+              toneMapped={false}
+            />
+          </mesh>
+        </>
+      )}
+
 
       {/* fork */}
       <mesh position={[0.78, 0.0, 0]} rotation={[0, 0, 0.25]}>
