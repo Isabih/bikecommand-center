@@ -339,9 +339,17 @@ function BikeDashboard() {
           <TelemetryCard label="Brake" value={telemetry.brake} icon={CircleDot} accent="red" />
           <TelemetryCard label="Left Indicator" value={telemetry.left_indicator} icon={Flame} accent="amber" />
           <TelemetryCard label="Right Indicator" value={telemetry.right_indicator} icon={Flame} accent="amber" />
+          {telemetry.left_indicator === telemetry.right_indicator && (
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground border border-amber-500/20 bg-amber-500/5 rounded-md px-2 py-1.5">
+              Firmware note: ESP32 wires both indicators to a single IND pin —
+              left & right toggle together. Wire a second opto-isolator to
+              distinguish them.
+            </div>
+          )}
           <TelemetryCard label="Left Leg" value={telemetry.left_leg} icon={Footprints} accent="cyan" />
           <TelemetryCard label="Right Leg" value={telemetry.right_leg} icon={Footprints} accent="cyan" />
           <TelemetryCard label="Heartbeat" value={telemetry.heartbeat} icon={Heart} accent="red" />
+
         </motion.section>
       </div>
 
