@@ -13,6 +13,7 @@ import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BikesIdRouteImport } from './routes/bikes.$id'
 import { Route as BikesIdTopicsRouteImport } from './routes/bikes.$id.topics'
+import { Route as BikesIdKioskRouteImport } from './routes/bikes.$id.kiosk'
 
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
@@ -34,17 +35,24 @@ const BikesIdTopicsRoute = BikesIdTopicsRouteImport.update({
   path: '/topics',
   getParentRoute: () => BikesIdRoute,
 } as any)
+const BikesIdKioskRoute = BikesIdKioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
+  getParentRoute: () => BikesIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
   '/bikes/$id': typeof BikesIdRouteWithChildren
+  '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
   '/bikes/$id': typeof BikesIdRouteWithChildren
+  '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
 }
 export interface FileRoutesById {
@@ -52,14 +60,26 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
   '/bikes/$id': typeof BikesIdRouteWithChildren
+  '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/docs' | '/bikes/$id' | '/bikes/$id/topics'
+  fullPaths:
+    | '/'
+    | '/docs'
+    | '/bikes/$id'
+    | '/bikes/$id/kiosk'
+    | '/bikes/$id/topics'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/docs' | '/bikes/$id' | '/bikes/$id/topics'
-  id: '__root__' | '/' | '/docs' | '/bikes/$id' | '/bikes/$id/topics'
+  to: '/' | '/docs' | '/bikes/$id' | '/bikes/$id/kiosk' | '/bikes/$id/topics'
+  id:
+    | '__root__'
+    | '/'
+    | '/docs'
+    | '/bikes/$id'
+    | '/bikes/$id/kiosk'
+    | '/bikes/$id/topics'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -98,14 +118,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BikesIdTopicsRouteImport
       parentRoute: typeof BikesIdRoute
     }
+    '/bikes/$id/kiosk': {
+      id: '/bikes/$id/kiosk'
+      path: '/kiosk'
+      fullPath: '/bikes/$id/kiosk'
+      preLoaderRoute: typeof BikesIdKioskRouteImport
+      parentRoute: typeof BikesIdRoute
+    }
   }
 }
 
 interface BikesIdRouteChildren {
+  BikesIdKioskRoute: typeof BikesIdKioskRoute
   BikesIdTopicsRoute: typeof BikesIdTopicsRoute
 }
 
 const BikesIdRouteChildren: BikesIdRouteChildren = {
+  BikesIdKioskRoute: BikesIdKioskRoute,
   BikesIdTopicsRoute: BikesIdTopicsRoute,
 }
 
@@ -120,3 +149,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
