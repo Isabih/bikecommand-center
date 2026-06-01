@@ -162,12 +162,20 @@ function BikeDashboard() {
           </div>
         </div>
         <Link
+          to="/bikes/$id/kiosk"
+          params={{ id: bike.id }}
+          className="inline-flex items-center gap-2 rounded-lg border border-[oklch(0.85_0.18_200/0.4)] bg-[oklch(0.85_0.18_200/0.08)] px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] neon-text-cyan hover:bg-[oklch(0.85_0.18_200/0.15)]"
+        >
+          <Gauge className="h-3.5 w-3.5" /> Kiosk
+        </Link>
+        <Link
           to="/bikes/$id/topics"
           params={{ id: bike.id }}
           className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:border-white/20"
         >
           <Settings2 className="h-3.5 w-3.5" /> Topics
         </Link>
+
         <StatusBadge ok={wsOk} label={wsOk ? "WiFi Online" : "WiFi Offline"} icon={wsOk ? Wifi : WifiOff} />
         <StatusBadge ok={wsOk} label={wsOk ? "MQTT Linked" : "MQTT Down"} icon={Radio} />
         <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -331,9 +339,17 @@ function BikeDashboard() {
           <TelemetryCard label="Brake" value={telemetry.brake} icon={CircleDot} accent="red" />
           <TelemetryCard label="Left Indicator" value={telemetry.left_indicator} icon={Flame} accent="amber" />
           <TelemetryCard label="Right Indicator" value={telemetry.right_indicator} icon={Flame} accent="amber" />
+          {telemetry.left_indicator === telemetry.right_indicator && (
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground border border-amber-500/20 bg-amber-500/5 rounded-md px-2 py-1.5">
+              Firmware note: ESP32 wires both indicators to a single IND pin —
+              left & right toggle together. Wire a second opto-isolator to
+              distinguish them.
+            </div>
+          )}
           <TelemetryCard label="Left Leg" value={telemetry.left_leg} icon={Footprints} accent="cyan" />
           <TelemetryCard label="Right Leg" value={telemetry.right_leg} icon={Footprints} accent="cyan" />
           <TelemetryCard label="Heartbeat" value={telemetry.heartbeat} icon={Heart} accent="red" />
+
         </motion.section>
       </div>
 
