@@ -162,12 +162,20 @@ function BikeDashboard() {
           </div>
         </div>
         <Link
+          to="/bikes/$id/kiosk"
+          params={{ id: bike.id }}
+          className="inline-flex items-center gap-2 rounded-lg border border-[oklch(0.85_0.18_200/0.4)] bg-[oklch(0.85_0.18_200/0.08)] px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] neon-text-cyan hover:bg-[oklch(0.85_0.18_200/0.15)]"
+        >
+          <Gauge className="h-3.5 w-3.5" /> Kiosk
+        </Link>
+        <Link
           to="/bikes/$id/topics"
           params={{ id: bike.id }}
           className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground hover:border-white/20"
         >
           <Settings2 className="h-3.5 w-3.5" /> Topics
         </Link>
+
         <StatusBadge ok={wsOk} label={wsOk ? "WiFi Online" : "WiFi Offline"} icon={wsOk ? Wifi : WifiOff} />
         <StatusBadge ok={wsOk} label={wsOk ? "MQTT Linked" : "MQTT Down"} icon={Radio} />
         <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
