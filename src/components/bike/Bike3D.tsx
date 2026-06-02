@@ -139,7 +139,12 @@ function Indicator({
   );
 }
 
-function LegSensor({
+/**
+ * Real motorcycle foot peg + pedal arm. Glows cyan when the rider's leg
+ * sensor reports HIGH (foot is on the peg). Pedal slightly tilts down
+ * under active pressure for a tactile look.
+ */
+function Pedal({
   position,
   active,
   side,
@@ -148,25 +153,77 @@ function LegSensor({
   active: boolean;
   side: "L" | "R";
 }) {
-  const ref = useRef<THREE.MeshStandardMaterial>(null!);
-  useFrame(({ clock }) => {
-    if (!ref.current) return;
+  const pegMat = useRef<THREE.MeshStandardMaterial>(null!);
+  const pedalGroup = useRef<THREE.Group>(null!);
+  const ringMat = useRef<THREE.MeshStandardMaterial>(null!);
+  const lightRef = useRef<THREE.PointLight>(null!);
+  const tilt = useRef(0);
+
+  useFrame(({ clock }, dt) => {
+    const targetTilt = active ? -0.35 : 0;
+    tilt.current += (targetTilt - tilt.current) * (1 - Math.exp(-dt * 8));
+    if (pedalGroup.current) pedalGroup.current.rotation.z = tilt.current;
+
     const pulse = active ? (Math.sin(clock.elapsedTime * 6) + 1) * 0.5 : 0;
-    ref.current.emissiveIntensity = active ? 0.8 + pulse * 1.6 : 0.05;
+    if (pegMat.current) pegMat.current.emissiveIntensity = active ? 0.9 + pulse * 1.4 : 0.04;
+    if (ringMat.current) ringMat.current.emissiveIntensity = active ? 1.6 + pulse * 1.8 : 0.05;
+    if (lightRef.current) lightRef.current.intensity = active ? 0.6 + pulse * 1.6 : 0;
   });
+
   return (
     <group position={position}>
-      <mesh>
-        <cylinderGeometry args={[0.08, 0.12, 0.06, 16]} />
-        <meshStandardMaterial
-          ref={ref}
-          color={active ? "#7CE7FF" : "#222a36"}
-          emissive={COL.cyan}
-          emissiveIntensity={0.05}
-          toneMapped={false}
-        />
+      {/* mounting bracket on the frame */}
+      <mesh position={[0, 0.04, side === "L" ? -0.04 : 0.04]}>
+        <boxGeometry args={[0.06, 0.08, 0.06]} />
+        <meshStandardMaterial color="#1a2230" metalness={0.85} roughness={0.3} />
       </mesh>
-      <Html distanceFactor={6} position={[0, 0.18, 0]} center>
+
+      {/* pivoting pedal arm + peg */}
+      <group ref={pedalGroup} position={[0, 0.02, side === "L" ? -0.08 : 0.08]}>
+        {/* pedal arm */}
+        <mesh position={[0.07, 0, 0]}>
+          <boxGeometry args={[0.18, 0.025, 0.025]} />
+          <meshStandardMaterial color="#9aa6b8" metalness={0.85} roughness={0.25} />
+        </mesh>
+        {/* knurled peg cylinder (rider's foot rests here) */}
+        <mesh position={[0.18, 0, side === "L" ? -0.04 : 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.12, 16]} />
+          <meshStandardMaterial
+            ref={pegMat}
+            color={active ? "#7CE7FF" : "#2a3142"}
+            emissive={COL.cyan}
+            emissiveIntensity={0.04}
+            metalness={0.9}
+            roughness={0.35}
+            toneMapped={false}
+          />
+        </mesh>
+        {/* cyan accent ring at the tip — lights up brightly when foot is on */}
+        <mesh
+          position={[0.18, 0, side === "L" ? -0.105 : 0.105]}
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          <torusGeometry args={[0.032, 0.008, 12, 24]} />
+          <meshStandardMaterial
+            ref={ringMat}
+            color={COL.cyan}
+            emissive={COL.cyan}
+            emissiveIntensity={0.05}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
+
+      <pointLight
+        ref={lightRef}
+        position={[0.18, 0, side === "L" ? -0.12 : 0.12]}
+        color={COL.cyan}
+        intensity={0}
+        distance={1.2}
+        decay={2}
+      />
+
+      <Html distanceFactor={6} position={[0, 0.22, 0]} center>
         <div
           className={`text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded-sm border ${
             active
@@ -174,12 +231,13 @@ function LegSensor({
               : "text-muted-foreground border-white/10 bg-black/40"
           }`}
         >
-          {side}-LEG
+          {side}-FOOT
         </div>
       </Html>
     </group>
   );
 }
+
 
 // Amber emissive panel on the bike body that blinks in sync with a turn signal.
 function BodyBlinker({
