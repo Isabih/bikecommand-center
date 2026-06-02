@@ -486,28 +486,73 @@ function ModeBackdrop({ mode }: { mode: SystemMode }) {
   );
 }
 
-function CameraFloat({ enabled }: { enabled: boolean }) {
-  useFrame(({ camera, clock }) => {
-    if (!enabled) return;
+/**
+ * Camera-preset driver. Smoothly tweens the camera to the chosen preset
+ * target whenever `preset` changes, then (for "orbit") lets OrbitControls/
+ * auto-rotate take over. For "front" and "angled" we lock the position
+ * and keep the bike framed.
+ */
+const PRESETS: Record<CameraPreset, { pos: [number, number, number]; look: [number, number, number] }> = {
+  front: { pos: [4.2, 0.9, 0.0], look: [0, 0.3, 0] },
+  angled: { pos: [2.6, 1.4, 3.2], look: [0, 0.2, 0] },
+  orbit: { pos: [3.4, 1.6, 3.4], look: [0, 0.2, 0] },
+};
+
+function CameraDriver({
+  preset,
+  cinematic,
+}: {
+  preset: CameraPreset;
+  cinematic: boolean;
+}) {
+  const { camera } = useThree();
+  const target = useMemo(() => PRESETS[preset], [preset]);
+  const lookAt = useRef(new THREE.Vector3(...target.look));
+  const desired = useRef(new THREE.Vector3(...target.pos));
+
+  useEffect(() => {
+    desired.current.set(...target.pos);
+    lookAt.current.set(...target.look);
+  }, [target]);
+
+  useFrame(({ clock }, dt) => {
     const e = clock.elapsedTime;
-    camera.position.y = 1.4 + Math.sin(e * 0.4) * 0.08;
-    camera.position.x = 2.4 + Math.sin(e * 0.25) * 0.12;
-    camera.lookAt(0, 0.2, 0);
+    // For non-orbit presets, hold the camera at the target with a gentle float
+    if (preset !== "orbit") {
+      const floatY = cinematic ? Math.sin(e * 0.4) * 0.05 : 0;
+      const floatX = cinematic ? Math.sin(e * 0.25) * 0.06 : 0;
+      const tx = desired.current.x + floatX;
+      const ty = desired.current.y + floatY;
+      const tz = desired.current.z;
+      const a = 1 - Math.exp(-dt * 3.5);
+      camera.position.x += (tx - camera.position.x) * a;
+      camera.position.y += (ty - camera.position.y) * a;
+      camera.position.z += (tz - camera.position.z) * a;
+      camera.lookAt(lookAt.current);
+    }
   });
   return null;
 }
 
-export function Bike3D({ t, mode, variant = "panel", cinematic = false, hideHud = false }: Props) {
+export function Bike3D({
+  t,
+  mode,
+  variant = "panel",
+  cinematic = false,
+  hideHud = false,
+  cameraPreset = "angled",
+}: Props) {
   const wrap =
     variant === "fill"
       ? "absolute inset-0 overflow-hidden bg-[oklch(0.12_0.02_252)]"
       : "relative h-[340px] w-full rounded-xl overflow-hidden border border-white/10 bg-[oklch(0.16_0.03_252)]";
+  const orbit = cameraPreset === "orbit";
   return (
     <div className={wrap}>
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [2.4, 1.4, 3.2], fov: cinematic ? 34 : 38 }}
+        camera={{ position: PRESETS[cameraPreset].pos, fov: cinematic ? 34 : 38 }}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       >
         <color attach="background" args={[cinematic ? "#050810" : "#070b13"]} />
@@ -529,18 +574,21 @@ export function Bike3D({ t, mode, variant = "panel", cinematic = false, hideHud 
             color="#000000"
           />
         </Suspense>
-        <CameraFloat enabled={cinematic} />
+        <CameraDriver preset={cameraPreset} cinematic={cinematic} />
         <OrbitControls
           enablePan={false}
           enableZoom
+          enableRotate={orbit}
           minDistance={2.6}
           maxDistance={6.5}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 2.05}
-          autoRotate={cinematic || mode !== "IDLE"}
+          target={[0, 0.2, 0]}
+          autoRotate={orbit && (cinematic || mode !== "IDLE")}
           autoRotateSpeed={cinematic ? 0.6 : mode === "SIMULATION" ? 1.2 : 0.4}
         />
       </Canvas>
+
 
       {!hideHud && (
         <div className="pointer-events-none absolute inset-0 p-3 flex flex-col justify-between">
