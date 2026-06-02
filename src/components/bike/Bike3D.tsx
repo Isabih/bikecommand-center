@@ -1,8 +1,10 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Html, ContactShadows, Environment } from "@react-three/drei";
-import { Suspense, useRef, useMemo } from "react";
+import { Suspense, useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import type { BikeTelemetry, SystemMode } from "@/lib/bike-types";
+
+export type CameraPreset = "front" | "angled" | "orbit";
 
 interface Props {
   t: BikeTelemetry;
@@ -13,7 +15,10 @@ interface Props {
   cinematic?: boolean;
   /** Hide HUD corner labels. */
   hideHud?: boolean;
+  /** Camera preset (kiosk). Defaults to "angled". */
+  cameraPreset?: CameraPreset;
 }
+
 
 
 // neon color palette aligned with the rest of the UI

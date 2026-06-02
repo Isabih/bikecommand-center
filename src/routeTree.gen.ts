@@ -31,14 +31,14 @@ const BikesIdIndexRoute = BikesIdIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const BikesIdTopicsRoute = BikesIdTopicsRouteImport.update({
-  id: '/topics',
-  path: '/topics',
-  getParentRoute: () => BikesIdRoute,
+  id: '/bikes/$id/topics',
+  path: '/bikes/$id/topics',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const BikesIdKioskRoute = BikesIdKioskRouteImport.update({
-  id: '/kiosk',
-  path: '/kiosk',
-  getParentRoute: () => BikesIdRoute,
+  id: '/bikes/$id/kiosk',
+  path: '/bikes/$id/kiosk',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -85,6 +85,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsRoute: typeof DocsRoute
+  BikesIdKioskRoute: typeof BikesIdKioskRoute
+  BikesIdTopicsRoute: typeof BikesIdTopicsRoute
   BikesIdIndexRoute: typeof BikesIdIndexRoute
 }
 
@@ -113,17 +115,17 @@ declare module '@tanstack/react-router' {
     }
     '/bikes/$id/topics': {
       id: '/bikes/$id/topics'
-      path: '/topics'
+      path: '/bikes/$id/topics'
       fullPath: '/bikes/$id/topics'
       preLoaderRoute: typeof BikesIdTopicsRouteImport
-      parentRoute: typeof BikesIdRoute
+      parentRoute: typeof rootRouteImport
     }
     '/bikes/$id/kiosk': {
       id: '/bikes/$id/kiosk'
-      path: '/kiosk'
+      path: '/bikes/$id/kiosk'
       fullPath: '/bikes/$id/kiosk'
       preLoaderRoute: typeof BikesIdKioskRouteImport
-      parentRoute: typeof BikesIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -131,18 +133,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsRoute: DocsRoute,
+  BikesIdKioskRoute: BikesIdKioskRoute,
+  BikesIdTopicsRoute: BikesIdTopicsRoute,
   BikesIdIndexRoute: BikesIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
