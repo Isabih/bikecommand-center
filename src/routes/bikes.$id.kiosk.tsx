@@ -1,7 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, CircleDot, Cpu, Flame, Footprints, Power, Wifi, WifiOff } from "lucide-react";
-import { Bike3D } from "@/components/bike/Bike3D";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  CircleDot,
+  Cpu,
+  Eye,
+  Flame,
+  Footprints,
+  Orbit,
+  Power,
+  Camera,
+  Wifi,
+  WifiOff,
+} from "lucide-react";
+import { Bike3D, type CameraPreset } from "@/components/bike/Bike3D";
 import { SpeedGauge } from "@/components/bike/SpeedGauge";
 import { ModeBadge } from "@/components/bike/ModeBadge";
 import { useBikeSocket } from "@/hooks/use-bike-socket";
@@ -19,6 +33,7 @@ export const Route = createFileRoute("/bikes/$id/kiosk")({
     ],
   }),
 });
+
 
 function StatusChip({
   ok,
