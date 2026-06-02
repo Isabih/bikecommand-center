@@ -1,8 +1,10 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Html, ContactShadows, Environment } from "@react-three/drei";
-import { Suspense, useRef, useMemo } from "react";
+import { Suspense, useRef, useMemo, useEffect } from "react";
 import * as THREE from "three";
 import type { BikeTelemetry, SystemMode } from "@/lib/bike-types";
+
+export type CameraPreset = "front" | "angled" | "orbit";
 
 interface Props {
   t: BikeTelemetry;
@@ -13,7 +15,10 @@ interface Props {
   cinematic?: boolean;
   /** Hide HUD corner labels. */
   hideHud?: boolean;
+  /** Camera preset (kiosk). Defaults to "angled". */
+  cameraPreset?: CameraPreset;
 }
+
 
 
 // neon color palette aligned with the rest of the UI
@@ -134,7 +139,12 @@ function Indicator({
   );
 }
 
-function LegSensor({
+/**
+ * Real motorcycle foot peg + pedal arm. Glows cyan when the rider's leg
+ * sensor reports HIGH (foot is on the peg). Pedal slightly tilts down
+ * under active pressure for a tactile look.
+ */
+function Pedal({
   position,
   active,
   side,
@@ -143,25 +153,77 @@ function LegSensor({
   active: boolean;
   side: "L" | "R";
 }) {
-  const ref = useRef<THREE.MeshStandardMaterial>(null!);
-  useFrame(({ clock }) => {
-    if (!ref.current) return;
+  const pegMat = useRef<THREE.MeshStandardMaterial>(null!);
+  const pedalGroup = useRef<THREE.Group>(null!);
+  const ringMat = useRef<THREE.MeshStandardMaterial>(null!);
+  const lightRef = useRef<THREE.PointLight>(null!);
+  const tilt = useRef(0);
+
+  useFrame(({ clock }, dt) => {
+    const targetTilt = active ? -0.35 : 0;
+    tilt.current += (targetTilt - tilt.current) * (1 - Math.exp(-dt * 8));
+    if (pedalGroup.current) pedalGroup.current.rotation.z = tilt.current;
+
     const pulse = active ? (Math.sin(clock.elapsedTime * 6) + 1) * 0.5 : 0;
-    ref.current.emissiveIntensity = active ? 0.8 + pulse * 1.6 : 0.05;
+    if (pegMat.current) pegMat.current.emissiveIntensity = active ? 0.9 + pulse * 1.4 : 0.04;
+    if (ringMat.current) ringMat.current.emissiveIntensity = active ? 1.6 + pulse * 1.8 : 0.05;
+    if (lightRef.current) lightRef.current.intensity = active ? 0.6 + pulse * 1.6 : 0;
   });
+
   return (
     <group position={position}>
-      <mesh>
-        <cylinderGeometry args={[0.08, 0.12, 0.06, 16]} />
-        <meshStandardMaterial
-          ref={ref}
-          color={active ? "#7CE7FF" : "#222a36"}
-          emissive={COL.cyan}
-          emissiveIntensity={0.05}
-          toneMapped={false}
-        />
+      {/* mounting bracket on the frame */}
+      <mesh position={[0, 0.04, side === "L" ? -0.04 : 0.04]}>
+        <boxGeometry args={[0.06, 0.08, 0.06]} />
+        <meshStandardMaterial color="#1a2230" metalness={0.85} roughness={0.3} />
       </mesh>
-      <Html distanceFactor={6} position={[0, 0.18, 0]} center>
+
+      {/* pivoting pedal arm + peg */}
+      <group ref={pedalGroup} position={[0, 0.02, side === "L" ? -0.08 : 0.08]}>
+        {/* pedal arm */}
+        <mesh position={[0.07, 0, 0]}>
+          <boxGeometry args={[0.18, 0.025, 0.025]} />
+          <meshStandardMaterial color="#9aa6b8" metalness={0.85} roughness={0.25} />
+        </mesh>
+        {/* knurled peg cylinder (rider's foot rests here) */}
+        <mesh position={[0.18, 0, side === "L" ? -0.04 : 0.04]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.12, 16]} />
+          <meshStandardMaterial
+            ref={pegMat}
+            color={active ? "#7CE7FF" : "#2a3142"}
+            emissive={COL.cyan}
+            emissiveIntensity={0.04}
+            metalness={0.9}
+            roughness={0.35}
+            toneMapped={false}
+          />
+        </mesh>
+        {/* cyan accent ring at the tip — lights up brightly when foot is on */}
+        <mesh
+          position={[0.18, 0, side === "L" ? -0.105 : 0.105]}
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          <torusGeometry args={[0.032, 0.008, 12, 24]} />
+          <meshStandardMaterial
+            ref={ringMat}
+            color={COL.cyan}
+            emissive={COL.cyan}
+            emissiveIntensity={0.05}
+            toneMapped={false}
+          />
+        </mesh>
+      </group>
+
+      <pointLight
+        ref={lightRef}
+        position={[0.18, 0, side === "L" ? -0.12 : 0.12]}
+        color={COL.cyan}
+        intensity={0}
+        distance={1.2}
+        decay={2}
+      />
+
+      <Html distanceFactor={6} position={[0, 0.22, 0]} center>
         <div
           className={`text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded-sm border ${
             active
@@ -169,12 +231,13 @@ function LegSensor({
               : "text-muted-foreground border-white/10 bg-black/40"
           }`}
         >
-          {side}-LEG
+          {side}-FOOT
         </div>
       </Html>
     </group>
   );
 }
+
 
 // Amber emissive panel on the bike body that blinks in sync with a turn signal.
 function BodyBlinker({
@@ -276,19 +339,42 @@ function BikeMesh({ t, mode }: Props) {
         <meshStandardMaterial color="#0a0d14" roughness={0.95} />
       </mesh>
 
-      {/* tail / brake light */}
-      <mesh position={[-0.92, 0.32, 0]}>
-        <boxGeometry args={[0.08, 0.14, 0.32]} />
+      {/* tail / brake light cluster — wide bar + center bulb that pulses on brake */}
+      <mesh position={[-0.94, 0.34, 0]}>
+        <boxGeometry args={[0.06, 0.16, 0.42]} />
+        <meshStandardMaterial
+          color={t.brake ? "#ff3030" : "#1a0606"}
+          emissive={COL.red}
+          emissiveIntensity={brakeGlow * 1.4}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* upper brake-bar strip (LED look) */}
+      <mesh position={[-0.94, 0.46, 0]}>
+        <boxGeometry args={[0.05, 0.04, 0.38]} />
         <meshStandardMaterial
           color={t.brake ? "#ff5050" : "#220a0a"}
           emissive={COL.red}
-          emissiveIntensity={brakeGlow}
+          emissiveIntensity={t.brake ? 3.0 : 0.05}
           toneMapped={false}
         />
       </mesh>
       {t.brake && (
-        <pointLight position={[-1.15, 0.32, 0]} color="#ff3030" intensity={3.5} distance={2.5} />
+        <>
+          <pointLight position={[-1.15, 0.34, 0]} color="#ff2020" intensity={4.5} distance={3.2} />
+          {/* rear flood — projects red glow onto the ground behind the bike */}
+          <spotLight
+            position={[-1.05, 0.4, 0]}
+            target-position={[-3.5, -0.5, 0]}
+            angle={0.7}
+            penumbra={0.8}
+            intensity={3.5}
+            distance={4}
+            color="#ff3030"
+          />
+        </>
       )}
+
 
       {/* body-mounted turn-signal panels — emissive amber strips along the fairing */}
       {/* front tank flanks */}
@@ -370,9 +456,10 @@ function BikeMesh({ t, mode }: Props) {
       <Indicator position={[-0.92, 0.45, 0.18]} active={t.right_indicator} color={COL.amber} />
       <Indicator position={[-0.92, 0.45, -0.18]} active={t.left_indicator} color={COL.amber} />
 
-      {/* leg sensors (foot pegs) */}
-      <LegSensor position={[-0.05, -0.32, 0.32]} active={t.right_leg} side="R" />
-      <LegSensor position={[-0.05, -0.32, -0.32]} active={t.left_leg} side="L" />
+      {/* foot pegs / pedals — glow & tilt down when rider's foot is detected */}
+      <Pedal position={[-0.05, -0.32, 0.32]} active={t.right_leg} side="R" />
+      <Pedal position={[-0.05, -0.32, -0.32]} active={t.left_leg} side="L" />
+
 
       {/* heartbeat strip on tank */}
       <mesh position={[0.05, 0.46, 0]}>
@@ -399,28 +486,73 @@ function ModeBackdrop({ mode }: { mode: SystemMode }) {
   );
 }
 
-function CameraFloat({ enabled }: { enabled: boolean }) {
-  useFrame(({ camera, clock }) => {
-    if (!enabled) return;
+/**
+ * Camera-preset driver. Smoothly tweens the camera to the chosen preset
+ * target whenever `preset` changes, then (for "orbit") lets OrbitControls/
+ * auto-rotate take over. For "front" and "angled" we lock the position
+ * and keep the bike framed.
+ */
+const PRESETS: Record<CameraPreset, { pos: [number, number, number]; look: [number, number, number] }> = {
+  front: { pos: [4.2, 0.9, 0.0], look: [0, 0.3, 0] },
+  angled: { pos: [2.6, 1.4, 3.2], look: [0, 0.2, 0] },
+  orbit: { pos: [3.4, 1.6, 3.4], look: [0, 0.2, 0] },
+};
+
+function CameraDriver({
+  preset,
+  cinematic,
+}: {
+  preset: CameraPreset;
+  cinematic: boolean;
+}) {
+  const { camera } = useThree();
+  const target = useMemo(() => PRESETS[preset], [preset]);
+  const lookAt = useRef(new THREE.Vector3(...target.look));
+  const desired = useRef(new THREE.Vector3(...target.pos));
+
+  useEffect(() => {
+    desired.current.set(...target.pos);
+    lookAt.current.set(...target.look);
+  }, [target]);
+
+  useFrame(({ clock }, dt) => {
     const e = clock.elapsedTime;
-    camera.position.y = 1.4 + Math.sin(e * 0.4) * 0.08;
-    camera.position.x = 2.4 + Math.sin(e * 0.25) * 0.12;
-    camera.lookAt(0, 0.2, 0);
+    // For non-orbit presets, hold the camera at the target with a gentle float
+    if (preset !== "orbit") {
+      const floatY = cinematic ? Math.sin(e * 0.4) * 0.05 : 0;
+      const floatX = cinematic ? Math.sin(e * 0.25) * 0.06 : 0;
+      const tx = desired.current.x + floatX;
+      const ty = desired.current.y + floatY;
+      const tz = desired.current.z;
+      const a = 1 - Math.exp(-dt * 3.5);
+      camera.position.x += (tx - camera.position.x) * a;
+      camera.position.y += (ty - camera.position.y) * a;
+      camera.position.z += (tz - camera.position.z) * a;
+      camera.lookAt(lookAt.current);
+    }
   });
   return null;
 }
 
-export function Bike3D({ t, mode, variant = "panel", cinematic = false, hideHud = false }: Props) {
+export function Bike3D({
+  t,
+  mode,
+  variant = "panel",
+  cinematic = false,
+  hideHud = false,
+  cameraPreset = "angled",
+}: Props) {
   const wrap =
     variant === "fill"
       ? "absolute inset-0 overflow-hidden bg-[oklch(0.12_0.02_252)]"
       : "relative h-[340px] w-full rounded-xl overflow-hidden border border-white/10 bg-[oklch(0.16_0.03_252)]";
+  const orbit = cameraPreset === "orbit";
   return (
     <div className={wrap}>
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [2.4, 1.4, 3.2], fov: cinematic ? 34 : 38 }}
+        camera={{ position: PRESETS[cameraPreset].pos, fov: cinematic ? 34 : 38 }}
         gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
       >
         <color attach="background" args={[cinematic ? "#050810" : "#070b13"]} />
@@ -442,18 +574,21 @@ export function Bike3D({ t, mode, variant = "panel", cinematic = false, hideHud 
             color="#000000"
           />
         </Suspense>
-        <CameraFloat enabled={cinematic} />
+        <CameraDriver preset={cameraPreset} cinematic={cinematic} />
         <OrbitControls
           enablePan={false}
           enableZoom
+          enableRotate={orbit}
           minDistance={2.6}
           maxDistance={6.5}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 2.05}
-          autoRotate={cinematic || mode !== "IDLE"}
+          target={[0, 0.2, 0]}
+          autoRotate={orbit && (cinematic || mode !== "IDLE")}
           autoRotateSpeed={cinematic ? 0.6 : mode === "SIMULATION" ? 1.2 : 0.4}
         />
       </Canvas>
+
 
       {!hideHud && (
         <div className="pointer-events-none absolute inset-0 p-3 flex flex-col justify-between">
