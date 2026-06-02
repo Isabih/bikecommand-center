@@ -34,7 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Bike, SystemMode } from "@/lib/bike-types";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/bikes/$id")({
+export const Route = createFileRoute("/bikes/$id/")({
   component: BikeDashboard,
   head: () => ({
     meta: [

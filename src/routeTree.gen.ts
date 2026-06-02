@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BikesIdRouteImport } from './routes/bikes.$id'
+import { Route as BikesIdIndexRouteImport } from './routes/bikes.$id.index'
 import { Route as BikesIdTopicsRouteImport } from './routes/bikes.$id.topics'
 import { Route as BikesIdKioskRouteImport } from './routes/bikes.$id.kiosk'
 
@@ -25,9 +25,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BikesIdRoute = BikesIdRouteImport.update({
-  id: '/bikes/$id',
-  path: '/bikes/$id',
+const BikesIdIndexRoute = BikesIdIndexRouteImport.update({
+  id: '/bikes/$id/',
+  path: '/bikes/$id/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BikesIdTopicsRoute = BikesIdTopicsRouteImport.update({
@@ -44,48 +44,48 @@ const BikesIdKioskRoute = BikesIdKioskRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
-  '/bikes/$id': typeof BikesIdRouteWithChildren
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
+  '/bikes/$id/': typeof BikesIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
-  '/bikes/$id': typeof BikesIdRouteWithChildren
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
+  '/bikes/$id': typeof BikesIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
-  '/bikes/$id': typeof BikesIdRouteWithChildren
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
+  '/bikes/$id/': typeof BikesIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/docs'
-    | '/bikes/$id'
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
+    | '/bikes/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/docs' | '/bikes/$id' | '/bikes/$id/kiosk' | '/bikes/$id/topics'
+  to: '/' | '/docs' | '/bikes/$id/kiosk' | '/bikes/$id/topics' | '/bikes/$id'
   id:
     | '__root__'
     | '/'
     | '/docs'
-    | '/bikes/$id'
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
+    | '/bikes/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsRoute: typeof DocsRoute
-  BikesIdRoute: typeof BikesIdRouteWithChildren
+  BikesIdIndexRoute: typeof BikesIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -104,11 +104,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bikes/$id': {
-      id: '/bikes/$id'
+    '/bikes/$id/': {
+      id: '/bikes/$id/'
       path: '/bikes/$id'
-      fullPath: '/bikes/$id'
-      preLoaderRoute: typeof BikesIdRouteImport
+      fullPath: '/bikes/$id/'
+      preLoaderRoute: typeof BikesIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bikes/$id/topics': {
@@ -128,23 +128,10 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface BikesIdRouteChildren {
-  BikesIdKioskRoute: typeof BikesIdKioskRoute
-  BikesIdTopicsRoute: typeof BikesIdTopicsRoute
-}
-
-const BikesIdRouteChildren: BikesIdRouteChildren = {
-  BikesIdKioskRoute: BikesIdKioskRoute,
-  BikesIdTopicsRoute: BikesIdTopicsRoute,
-}
-
-const BikesIdRouteWithChildren =
-  BikesIdRoute._addFileChildren(BikesIdRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsRoute: DocsRoute,
-  BikesIdRoute: BikesIdRouteWithChildren,
+  BikesIdIndexRoute: BikesIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
