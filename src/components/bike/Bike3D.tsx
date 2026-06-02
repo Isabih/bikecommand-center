@@ -339,19 +339,42 @@ function BikeMesh({ t, mode }: Props) {
         <meshStandardMaterial color="#0a0d14" roughness={0.95} />
       </mesh>
 
-      {/* tail / brake light */}
-      <mesh position={[-0.92, 0.32, 0]}>
-        <boxGeometry args={[0.08, 0.14, 0.32]} />
+      {/* tail / brake light cluster — wide bar + center bulb that pulses on brake */}
+      <mesh position={[-0.94, 0.34, 0]}>
+        <boxGeometry args={[0.06, 0.16, 0.42]} />
+        <meshStandardMaterial
+          color={t.brake ? "#ff3030" : "#1a0606"}
+          emissive={COL.red}
+          emissiveIntensity={brakeGlow * 1.4}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* upper brake-bar strip (LED look) */}
+      <mesh position={[-0.94, 0.46, 0]}>
+        <boxGeometry args={[0.05, 0.04, 0.38]} />
         <meshStandardMaterial
           color={t.brake ? "#ff5050" : "#220a0a"}
           emissive={COL.red}
-          emissiveIntensity={brakeGlow}
+          emissiveIntensity={t.brake ? 3.0 : 0.05}
           toneMapped={false}
         />
       </mesh>
       {t.brake && (
-        <pointLight position={[-1.15, 0.32, 0]} color="#ff3030" intensity={3.5} distance={2.5} />
+        <>
+          <pointLight position={[-1.15, 0.34, 0]} color="#ff2020" intensity={4.5} distance={3.2} />
+          {/* rear flood — projects red glow onto the ground behind the bike */}
+          <spotLight
+            position={[-1.05, 0.4, 0]}
+            target-position={[-3.5, -0.5, 0]}
+            angle={0.7}
+            penumbra={0.8}
+            intensity={3.5}
+            distance={4}
+            color="#ff3030"
+          />
+        </>
       )}
+
 
       {/* body-mounted turn-signal panels — emissive amber strips along the fairing */}
       {/* front tank flanks */}
