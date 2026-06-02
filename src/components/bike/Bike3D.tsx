@@ -433,9 +433,10 @@ function BikeMesh({ t, mode }: Props) {
       <Indicator position={[-0.92, 0.45, 0.18]} active={t.right_indicator} color={COL.amber} />
       <Indicator position={[-0.92, 0.45, -0.18]} active={t.left_indicator} color={COL.amber} />
 
-      {/* leg sensors (foot pegs) */}
-      <LegSensor position={[-0.05, -0.32, 0.32]} active={t.right_leg} side="R" />
-      <LegSensor position={[-0.05, -0.32, -0.32]} active={t.left_leg} side="L" />
+      {/* foot pegs / pedals — glow & tilt down when rider's foot is detected */}
+      <Pedal position={[-0.05, -0.32, 0.32]} active={t.right_leg} side="R" />
+      <Pedal position={[-0.05, -0.32, -0.32]} active={t.left_leg} side="L" />
+
 
       {/* heartbeat strip on tank */}
       <mesh position={[0.05, 0.46, 0]}>
