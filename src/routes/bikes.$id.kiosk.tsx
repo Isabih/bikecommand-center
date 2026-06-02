@@ -92,9 +92,16 @@ function MiniLight({
   );
 }
 
+const CAM_PRESETS: { id: CameraPreset; label: string; icon: typeof Eye }[] = [
+  { id: "front", label: "Front", icon: Eye },
+  { id: "angled", label: "Angled", icon: Camera },
+  { id: "orbit", label: "Orbit", icon: Orbit },
+];
+
 function KioskView() {
   const { id } = Route.useParams();
   const [bike, setBike] = useState<Bike | null>(null);
+  const [cam, setCam] = useState<CameraPreset>("angled");
 
   useEffect(() => {
     let cancel = false;
@@ -126,7 +133,7 @@ function KioskView() {
   return (
     <div className="fixed inset-0 bg-black text-foreground overflow-hidden">
       {/* 3D fills the entire screen */}
-      <Bike3D t={telemetry} mode={mode} variant="fill" cinematic hideHud />
+      <Bike3D t={telemetry} mode={mode} variant="fill" cinematic hideHud cameraPreset={cam} />
 
       {/* Top bar */}
       <div className="absolute top-0 inset-x-0 p-5 flex items-center justify-between z-10 pointer-events-none">
@@ -138,6 +145,28 @@ function KioskView() {
           <ArrowLeft className="h-3.5 w-3.5" /> Exit Kiosk
         </Link>
         <div className="flex items-center gap-2">
+          {/* Camera preset switcher */}
+          <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/15 bg-black/50 backdrop-blur p-1">
+            {CAM_PRESETS.map((p) => {
+              const Icon = p.icon;
+              const active = cam === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setCam(p.id)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.22em] transition-all",
+                    active
+                      ? "neon-text-cyan bg-[oklch(0.85_0.18_200/0.12)] border border-[oklch(0.85_0.18_200/0.5)]"
+                      : "text-muted-foreground hover:text-foreground border border-transparent",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
           <div className="rounded-full border border-white/15 bg-black/50 backdrop-blur px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] flex items-center gap-2">
             <Cpu className="h-3.5 w-3.5 neon-text-cyan" />
             <span className="font-mono normal-case tracking-normal">{bike?.esp32_id ?? "—"}</span>
@@ -146,6 +175,7 @@ function KioskView() {
           <ModeBadge mode={mode} size="sm" />
         </div>
       </div>
+
 
       {/* Left turn indicator (large arrow flasher) */}
       <div
