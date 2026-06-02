@@ -6,6 +6,10 @@ export type ConnState = "connecting" | "connected" | "disconnected";
 /**
  * Connects to the FastAPI WebSocket and aggregates the live telemetry stream.
  * When `esp32Id` is provided, only messages with a matching `esp32_id` are accepted.
+ *
+ * Optimised for high-frequency telemetry: incoming messages are coalesced into a
+ * single React state update per animation frame (~60 Hz max), preventing render
+ * thrash while keeping the latest payload always visible.
  */
 export function useBikeSocket(esp32Id?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
@@ -15,8 +19,32 @@ export function useBikeSocket(esp32Id?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef<number | null>(null);
 
+  // rAF-coalesced accumulators
+  const pending = useRef<Partial<BikeTelemetry> | null>(null);
+  const pendingCount = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const lastTsRef = useRef<number>(0);
+
   useEffect(() => {
     let closed = false;
+
+    const flush = () => {
+      rafRef.current = null;
+      if (!pending.current) return;
+      const patch = pending.current;
+      const count = pendingCount.current;
+      pending.current = null;
+      pendingCount.current = 0;
+      setTelemetry((prev) => ({ ...prev, ...patch }));
+      lastTsRef.current = performance.now();
+      setLastUpdate(Date.now());
+      setHeartbeatTick((t) => t + count);
+    };
+
+    const scheduleFlush = () => {
+      if (rafRef.current != null) return;
+      rafRef.current = requestAnimationFrame(flush);
+    };
 
     const connect = () => {
       if (closed) return;
@@ -34,9 +62,10 @@ export function useBikeSocket(esp32Id?: string) {
           try {
             const data = JSON.parse(ev.data) as Partial<BikeTelemetry>;
             if (esp32Id && data.esp32_id && data.esp32_id !== esp32Id) return;
-            setTelemetry((prev) => ({ ...prev, ...data }));
-            setLastUpdate(Date.now());
-            setHeartbeatTick((t) => t + 1);
+            // merge into pending patch — newest values win
+            pending.current = pending.current ? { ...pending.current, ...data } : data;
+            pendingCount.current += 1;
+            scheduleFlush();
           } catch {
             /* ignore */
           }
@@ -50,6 +79,7 @@ export function useBikeSocket(esp32Id?: string) {
     return () => {
       closed = true;
       if (retryRef.current) clearTimeout(retryRef.current);
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       wsRef.current?.close();
     };
   }, [esp32Id]);
