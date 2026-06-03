@@ -13,6 +13,7 @@ interface Props {
   active?: boolean;
   onAction: () => Promise<unknown>;
   successMsg: string;
+  loadingMsg?: string;
 }
 
 const variantClasses: Record<Variant, { glow: string; text: string; ring: string }> = {
@@ -22,22 +23,23 @@ const variantClasses: Record<Variant, { glow: string; text: string; ring: string
   gray: { glow: "shadow-[0_0_18px_oklch(0.6_0.02_240/0.4)]", text: "text-muted-foreground", ring: "ring-[oklch(0.6_0.02_240/0.4)]" },
 };
 
-export function ControlButton({ label, icon: Icon, variant, active, onAction, successMsg }: Props) {
+export function ControlButton({ label, icon: Icon, variant, active, onAction, successMsg, loadingMsg }: Props) {
   const [loading, setLoading] = useState(false);
-  const v = variantClasses[variant];
 
   const handle = async () => {
     if (loading) return;
     setLoading(true);
     try {
-      await onAction();
-      toast.success(successMsg);
-    } catch (e) {
-      toast.error((e as Error).message || "Request failed");
+      await toast.promise(onAction(), {
+        loading: loadingMsg ?? `${label}…`,
+        success: successMsg,
+        error: (e: Error) => e?.message || "Request failed",
+      }).unwrap?.() ?? (await onAction().catch(() => {}));
     } finally {
       setLoading(false);
     }
   };
+  const v = variantClasses[variant];
 
   return (
     <motion.button
