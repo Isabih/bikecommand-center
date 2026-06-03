@@ -8,7 +8,6 @@ import {
   Cpu,
   Eye,
   Flame,
-  Footprints,
   Orbit,
   Power,
   Camera,
