@@ -194,16 +194,18 @@ function KioskView() {
         <ChevronRight className="h-24 w-24 neon-text-amber drop-shadow-[0_0_30px_oklch(0.82_0.18_75/0.7)]" />
       </div>
 
-      {/* Bottom: speed gauge + minimal status lights */}
-      <div className="absolute bottom-0 inset-x-0 p-6 z-10 flex flex-col items-center gap-4 pointer-events-none">
+      {/* Top-left: Speed gauge (out of the way of the 3D bike) */}
+      <div className="absolute top-20 left-5 z-10 pointer-events-none">
+        <div className="rounded-2xl bg-black/55 backdrop-blur-md border border-white/10 px-5 py-4 shadow-[0_0_60px_oklch(0.85_0.18_200/0.15)]">
+          <SpeedGauge speed={telemetry.speed} />
+        </div>
+      </div>
+
+      {/* Top-center: status chips, sit above the 3D bike */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
         <div className="flex flex-wrap items-center justify-center gap-2">
           <MiniLight active={telemetry.ignition} color="green" icon={Power} label="Ignition" />
           <MiniLight active={telemetry.brake} color="red" icon={CircleDot} label="Brake" pulse />
-          <MiniLight active={telemetry.left_leg} color="cyan" icon={Footprints} label="L-Leg" />
-          <MiniLight active={telemetry.right_leg} color="cyan" icon={Footprints} label="R-Leg" />
-        </div>
-        <div className="rounded-2xl bg-black/55 backdrop-blur-md border border-white/10 px-6 py-4 shadow-[0_0_60px_oklch(0.85_0.18_200/0.15)]">
-          <SpeedGauge speed={telemetry.speed} />
         </div>
       </div>
 
