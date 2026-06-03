@@ -29,12 +29,16 @@ export function ControlButton({ label, icon: Icon, variant, active, onAction, su
   const handle = async () => {
     if (loading) return;
     setLoading(true);
+    const p = onAction();
+    toast.promise(p, {
+      loading: loadingMsg ?? `${label}…`,
+      success: successMsg,
+      error: (e: Error) => e?.message || "Request failed",
+    });
     try {
-      await toast.promise(onAction(), {
-        loading: loadingMsg ?? `${label}…`,
-        success: successMsg,
-        error: (e: Error) => e?.message || "Request failed",
-      }).unwrap?.() ?? (await onAction().catch(() => {}));
+      await p;
+    } catch {
+      /* toast already surfaced */
     } finally {
       setLoading(false);
     }
