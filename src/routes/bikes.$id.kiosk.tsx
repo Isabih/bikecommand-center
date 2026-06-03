@@ -194,16 +194,13 @@ function KioskView() {
         <ChevronRight className="h-24 w-24 neon-text-amber drop-shadow-[0_0_30px_oklch(0.82_0.18_75/0.7)]" />
       </div>
 
-      {/* Top-left: Speed gauge (out of the way of the 3D bike) */}
-      <div className="absolute top-20 left-5 z-10 pointer-events-none">
-        <div className="rounded-2xl bg-black/55 backdrop-blur-md border border-white/10 px-5 py-4 shadow-[0_0_60px_oklch(0.85_0.18_200/0.15)]">
+      {/* Top overlay row: gauge (transparent) on left, status chips on right.
+          Sits above the 3D bike on every breakpoint, never wraps over the model. */}
+      <div className="absolute top-16 sm:top-20 inset-x-3 sm:inset-x-6 z-10 pointer-events-none flex items-start justify-between gap-3">
+        <div className="shrink-0 scale-75 sm:scale-90 lg:scale-100 origin-top-left">
           <SpeedGauge speed={telemetry.speed} />
         </div>
-      </div>
-
-      {/* Top-center: status chips, sit above the 3D bike */}
-      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 pointer-events-none">
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto max-w-[60%] justify-end">
           <MiniLight active={telemetry.ignition} color="green" icon={Power} label="Ignition" />
           <MiniLight active={telemetry.brake} color="red" icon={CircleDot} label="Brake" pulse />
         </div>
