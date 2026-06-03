@@ -509,27 +509,25 @@ function CameraDriver({
   const target = useMemo(() => PRESETS[preset], [preset]);
   const lookAt = useRef(new THREE.Vector3(...target.look));
   const desired = useRef(new THREE.Vector3(...target.pos));
+  const tweenUntil = useRef(0);
 
   useEffect(() => {
     desired.current.set(...target.pos);
     lookAt.current.set(...target.look);
+    // Tween for ~1.2s after a preset change, then release control to OrbitControls
+    tweenUntil.current = performance.now() + 1200;
   }, [target]);
 
-  useFrame(({ clock }, dt) => {
-    const e = clock.elapsedTime;
-    // For non-orbit presets, hold the camera at the target with a gentle float
-    if (preset !== "orbit") {
-      const floatY = cinematic ? Math.sin(e * 0.4) * 0.05 : 0;
-      const floatX = cinematic ? Math.sin(e * 0.25) * 0.06 : 0;
-      const tx = desired.current.x + floatX;
-      const ty = desired.current.y + floatY;
-      const tz = desired.current.z;
-      const a = 1 - Math.exp(-dt * 3.5);
-      camera.position.x += (tx - camera.position.x) * a;
-      camera.position.y += (ty - camera.position.y) * a;
-      camera.position.z += (tz - camera.position.z) * a;
-      camera.lookAt(lookAt.current);
-    }
+  useFrame((_, dt) => {
+    if (performance.now() > tweenUntil.current) return;
+    const tx = desired.current.x;
+    const ty = desired.current.y;
+    const tz = desired.current.z;
+    const a = 1 - Math.exp(-dt * 4);
+    camera.position.x += (tx - camera.position.x) * a;
+    camera.position.y += (ty - camera.position.y) * a;
+    camera.position.z += (tz - camera.position.z) * a;
+    camera.lookAt(lookAt.current);
   });
   return null;
 }
