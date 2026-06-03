@@ -576,13 +576,14 @@ export function Bike3D({
         </Suspense>
         <CameraDriver preset={cameraPreset} cinematic={cinematic} />
         <OrbitControls
+          makeDefault
           enablePan={false}
           enableZoom
-          enableRotate={orbit}
-          minDistance={2.6}
-          maxDistance={6.5}
-          minPolarAngle={Math.PI / 4}
-          maxPolarAngle={Math.PI / 2.05}
+          enableRotate
+          minDistance={2.2}
+          maxDistance={8}
+          minPolarAngle={0.15}
+          maxPolarAngle={Math.PI - 0.15}
           target={[0, 0.2, 0]}
           autoRotate={orbit && (cinematic || mode !== "IDLE")}
           autoRotateSpeed={cinematic ? 0.6 : mode === "SIMULATION" ? 1.2 : 0.4}
