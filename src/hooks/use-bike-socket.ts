@@ -11,7 +11,7 @@ export type ConnState = "connecting" | "connected" | "disconnected";
  * single React state update per animation frame (~60 Hz max), preventing render
  * thrash while keeping the latest payload always visible.
  */
-export function useBikeSocket(esp32Id?: string) {
+export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
   const [wsState, setWsState] = useState<ConnState>("connecting");
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
@@ -60,8 +60,19 @@ export function useBikeSocket(esp32Id?: string) {
         ws.onerror = () => ws.close();
         ws.onmessage = (ev) => {
           try {
-            const data = JSON.parse(ev.data) as Partial<BikeTelemetry>;
-            if (esp32Id && data.esp32_id && data.esp32_id !== esp32Id) return;
+            const data = JSON.parse(ev.data) as Partial<BikeTelemetry> & {
+              _bike_id?: string | null;
+            };
+            // Accept message if:
+            //  - no filter is configured, OR
+            //  - bridge tagged it for this bike (topic→bike mapping), OR
+            //  - payload esp32_id matches this bike's esp32_id.
+            // This way the dashboard still updates even when the firmware
+            // publishes a different esp32_id than what's stored on the bike row.
+            const matchesBike = bikeId && data._bike_id && data._bike_id === bikeId;
+            const matchesEsp = esp32Id && data.esp32_id && data.esp32_id === esp32Id;
+            const hasAnyFilter = Boolean(esp32Id || bikeId);
+            if (hasAnyFilter && !matchesBike && !matchesEsp) return;
             // merge into pending patch — newest values win
             pending.current = pending.current ? { ...pending.current, ...data } : data;
             pendingCount.current += 1;
@@ -82,7 +93,7 @@ export function useBikeSocket(esp32Id?: string) {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       wsRef.current?.close();
     };
-  }, [esp32Id]);
+  }, [esp32Id, bikeId]);
 
   return { telemetry, wsState, lastUpdate, heartbeatTick };
 }
