@@ -125,7 +125,7 @@ function KioskView() {
     };
   }, [id]);
 
-  const { telemetry, wsState } = useBikeSocket(bike?.esp32_id);
+  const { telemetry, wsState } = useBikeSocket(bike?.esp32_id, id);
   const mode: SystemMode = (bike?.session_mode as SystemMode) ?? "IDLE";
   const wsOk = wsState === "connected";
 
