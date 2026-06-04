@@ -73,6 +73,9 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
             const matchesEsp = esp32Id && data.esp32_id && data.esp32_id === esp32Id;
             const hasAnyFilter = Boolean(esp32Id || bikeId);
             if (hasAnyFilter && !matchesBike && !matchesEsp) return;
+            // merge into pending patch — newest values win
+            pending.current = pending.current ? { ...pending.current, ...data } : data;
+            pendingCount.current += 1;
             scheduleFlush();
           } catch {
             /* ignore */
