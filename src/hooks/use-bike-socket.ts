@@ -93,7 +93,7 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       wsRef.current?.close();
     };
-  }, [esp32Id]);
+  }, [esp32Id, bikeId]);
 
   return { telemetry, wsState, lastUpdate, heartbeatTick };
 }
