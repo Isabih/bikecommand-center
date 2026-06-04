@@ -11,7 +11,7 @@ export type ConnState = "connecting" | "connected" | "disconnected";
  * single React state update per animation frame (~60 Hz max), preventing render
  * thrash while keeping the latest payload always visible.
  */
-export function useBikeSocket(esp32Id?: string) {
+export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
   const [wsState, setWsState] = useState<ConnState>("connecting");
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
