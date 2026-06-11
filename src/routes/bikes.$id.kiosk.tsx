@@ -127,7 +127,22 @@ function KioskView() {
     };
   }, [id]);
 
-  const { telemetry, wsState } = useBikeSocket(bike?.esp32_id, id);
+  const { telemetry, wsState, reset } = useBikeSocket(bike?.esp32_id, id);
+  const [turningOff, setTurningOff] = useState(false);
+  const handleTurnOff = async () => {
+    if (turningOff) return;
+    setTurningOff(true);
+    const p = (async () => {
+      await bikeApi.stopBike(id);
+      reset();
+    })();
+    toast.promise(p, {
+      loading: "Turning off bike…",
+      success: "Bike OFF — all systems low",
+      error: (e: Error) => e?.message || "Failed to turn off",
+    });
+    try { await p; } catch { /* toast surfaced */ } finally { setTurningOff(false); }
+  };
   const mode: SystemMode = (bike?.session_mode as SystemMode) ?? "IDLE";
   const wsOk = wsState === "connected";
 
