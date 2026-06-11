@@ -254,9 +254,10 @@ function BikeDashboard() {
             label="STOP BIKE SESSION"
             icon={Square}
             variant="red"
-            successMsg="Bike session stopped"
+            successMsg="Bike session stopped — telemetry reset"
             onAction={async () => {
               await bikeApi.stopBike(bike.id);
+              reset();
             }}
           />
           <div className="my-2 h-px bg-white/5" />
@@ -274,9 +275,10 @@ function BikeDashboard() {
             label="STOP SIMULATION"
             icon={StopCircle}
             variant="gray"
-            successMsg="Simulation stopped"
+            successMsg="Simulation stopped — telemetry reset"
             onAction={async () => {
               await bikeApi.stopSimulation(bike.id);
+              reset();
             }}
           />
         </motion.section>
