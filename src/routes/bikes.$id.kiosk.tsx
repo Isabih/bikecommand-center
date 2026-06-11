@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -10,6 +11,7 @@ import {
   Flame,
   Orbit,
   Power,
+  PowerOff,
   Camera,
   Wifi,
   WifiOff,
