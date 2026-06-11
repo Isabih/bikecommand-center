@@ -110,5 +110,12 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
     };
   }, [esp32Id, bikeId]);
 
-  return { telemetry, wsState, lastUpdate, heartbeatTick };
+  const reset = () => {
+    pending.current = null;
+    pendingCount.current = 0;
+    setTelemetry({ ...INITIAL_TELEMETRY });
+    setLastUpdate(Date.now());
+  };
+
+  return { telemetry, wsState, lastUpdate, heartbeatTick, reset };
 }
