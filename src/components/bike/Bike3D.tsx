@@ -44,11 +44,17 @@ function Wheel({
   const currentSpeed = useRef(0);
   const rimMat = useRef<THREE.MeshStandardMaterial>(null!);
   useFrame(({ clock }, dt) => {
-    // low-pass filter wheel angular velocity — smooth accel/decel
-    const target = brake ? spinSpeed * 0.35 : spinSpeed;
-    const alpha = 1 - Math.exp(-dt * (brake ? 6 : 2.5));
-    currentSpeed.current += (target - currentSpeed.current) * alpha;
-    if (ref.current) ref.current.rotation.z -= currentSpeed.current * dt;
+    // No speed → wheels are stationary (no decay drift either).
+    if (spinSpeed <= 0) {
+      currentSpeed.current = 0;
+    } else {
+      const target = brake ? spinSpeed * 0.35 : spinSpeed;
+      const alpha = 1 - Math.exp(-dt * (brake ? 6 : 2.5));
+      currentSpeed.current += (target - currentSpeed.current) * alpha;
+    }
+    if (ref.current && currentSpeed.current !== 0) {
+      ref.current.rotation.z -= currentSpeed.current * dt;
+    }
     if (rimMat.current) {
       const pulse = brake ? (Math.sin(clock.elapsedTime * 14) + 1) * 0.5 : 0;
       rimMat.current.emissiveIntensity = brake ? 1.4 + pulse * 1.4 : 0.4;
