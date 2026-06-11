@@ -153,13 +153,23 @@ function KioskView() {
 
       {/* Top bar */}
       <div className="absolute top-0 inset-x-0 p-5 flex items-center justify-between z-10 pointer-events-none">
-        <Link
-          to="/bikes/$id"
-          params={{ id }}
-          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 backdrop-blur px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" /> Exit Kiosk
-        </Link>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <Link
+            to="/bikes/$id"
+            params={{ id }}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/50 backdrop-blur px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Dashboard
+          </Link>
+          <button
+            onClick={handleTurnOff}
+            disabled={turningOff}
+            className="inline-flex items-center gap-2 rounded-full border border-[oklch(0.7_0.26_25/0.55)] bg-[oklch(0.7_0.26_25/0.12)] backdrop-blur px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] neon-text-red hover:bg-[oklch(0.7_0.26_25/0.2)] disabled:opacity-60"
+          >
+            <PowerOff className="h-3.5 w-3.5" />
+            {turningOff ? "Turning off…" : "Turn Off Bike"}
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           {/* Camera preset switcher */}
           <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/15 bg-black/50 backdrop-blur p-1">
