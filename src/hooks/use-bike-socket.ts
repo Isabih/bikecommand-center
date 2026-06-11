@@ -35,7 +35,11 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       const count = pendingCount.current;
       pending.current = null;
       pendingCount.current = 0;
-      setTelemetry((prev) => ({ ...prev, ...patch }));
+      // Each telemetry payload is treated as a complete snapshot:
+      // fields not present in the payload fall back to their defaults
+      // (false / 0). This guarantees that a previously-HIGH indicator
+      // immediately goes LOW the next time a payload arrives without it.
+      setTelemetry(() => ({ ...INITIAL_TELEMETRY, ...patch }));
       lastTsRef.current = performance.now();
       setLastUpdate(Date.now());
       setHeartbeatTick((t) => t + count);
