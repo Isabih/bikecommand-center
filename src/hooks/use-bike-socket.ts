@@ -35,11 +35,18 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       const count = pendingCount.current;
       pending.current = null;
       pendingCount.current = 0;
-      // Each telemetry payload is treated as a complete snapshot:
-      // fields not present in the payload fall back to their defaults
-      // (false / 0). This guarantees that a previously-HIGH indicator
-      // immediately goes LOW the next time a payload arrives without it.
-      setTelemetry(() => ({ ...INITIAL_TELEMETRY, ...patch }));
+      // Each payload is a complete snapshot — missing fields fall back to LOW/0.
+      const next: BikeTelemetry = { ...INITIAL_TELEMETRY, ...patch };
+      // Real-bike rule: ignition OFF ⇒ nothing else can be active.
+      if (!next.ignition) {
+        next.speed = 0;
+        next.brake = false;
+        next.left_indicator = false;
+        next.right_indicator = false;
+        next.left_leg = false;
+        next.right_leg = false;
+      }
+      setTelemetry(next);
       lastTsRef.current = performance.now();
       setLastUpdate(Date.now());
       setHeartbeatTick((t) => t + count);
