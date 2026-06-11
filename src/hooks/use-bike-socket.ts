@@ -35,7 +35,11 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       const count = pendingCount.current;
       pending.current = null;
       pendingCount.current = 0;
-      setTelemetry((prev) => ({ ...prev, ...patch }));
+      // Each telemetry payload is treated as a complete snapshot:
+      // fields not present in the payload fall back to their defaults
+      // (false / 0). This guarantees that a previously-HIGH indicator
+      // immediately goes LOW the next time a payload arrives without it.
+      setTelemetry(() => ({ ...INITIAL_TELEMETRY, ...patch }));
       lastTsRef.current = performance.now();
       setLastUpdate(Date.now());
       setHeartbeatTick((t) => t + count);
@@ -62,19 +66,23 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
           try {
             const data = JSON.parse(ev.data) as Partial<BikeTelemetry> & {
               _bike_id?: string | null;
+              _topic?: string;
             };
-            // Accept message if:
-            //  - no filter is configured, OR
-            //  - bridge tagged it for this bike (topic→bike mapping), OR
-            //  - payload esp32_id matches this bike's esp32_id.
-            // This way the dashboard still updates even when the firmware
-            // publishes a different esp32_id than what's stored on the bike row.
             const matchesBike = bikeId && data._bike_id && data._bike_id === bikeId;
             const matchesEsp = esp32Id && data.esp32_id && data.esp32_id === esp32Id;
             const hasAnyFilter = Boolean(esp32Id || bikeId);
             if (hasAnyFilter && !matchesBike && !matchesEsp) return;
-            // merge into pending patch — newest values win
-            pending.current = pending.current ? { ...pending.current, ...data } : data;
+            // Only telemetry frames update bike state. Control/simulation
+            // echoes from the backend are ignored.
+            const isTelemetry =
+              data._topic === "bike/data" ||
+              "speed" in data ||
+              "ignition" in data ||
+              "heartbeat" in data;
+            if (!isTelemetry) return;
+            // Replace pending with the latest snapshot — each payload is
+            // authoritative, no carry-over between messages.
+            pending.current = data;
             pendingCount.current += 1;
             scheduleFlush();
           } catch {
