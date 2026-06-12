@@ -3,13 +3,20 @@ import { WS_URL, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types"
 
 export type ConnState = "connecting" | "connected" | "disconnected";
 
+/** If no telemetry arrives for this long, everything drops to LOW. */
+const STALE_MS = 6000;
+/** Minimum interval between state flushes (throttle, not rAF — keeps working when tab is throttled). */
+const FLUSH_MS = 50;
+
 /**
  * Connects to the FastAPI WebSocket and aggregates the live telemetry stream.
  * When `esp32Id` is provided, only messages with a matching `esp32_id` are accepted.
  *
- * Optimised for high-frequency telemetry: incoming messages are coalesced into a
- * single React state update per animation frame (~60 Hz max), preventing render
- * thrash while keeping the latest payload always visible.
+ * Real-time behavior:
+ * - Each payload is an authoritative snapshot (missing fields → LOW/0).
+ * - Updates flush via setTimeout (max ~20 Hz) so they keep flowing even when
+ *   the tab/iframe is background-throttled (rAF would stall there).
+ * - A stale watchdog forces everything LOW if the device stops publishing.
  */
 export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
@@ -19,22 +26,34 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef<number | null>(null);
 
-  // rAF-coalesced accumulators
+  // throttle-coalesced accumulators
   const pending = useRef<Partial<BikeTelemetry> | null>(null);
   const pendingCount = useRef(0);
-  const rafRef = useRef<number | null>(null);
-  const lastTsRef = useRef<number>(0);
+  const flushTimerRef = useRef<number | null>(null);
+  const lastFlushRef = useRef(0);
+  const staleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     let closed = false;
 
+    const armStaleWatchdog = () => {
+      if (staleTimerRef.current != null) clearTimeout(staleTimerRef.current);
+      staleTimerRef.current = window.setTimeout(() => {
+        // No data published recently — everything LOW.
+        pending.current = null;
+        pendingCount.current = 0;
+        setTelemetry({ ...INITIAL_TELEMETRY });
+      }, STALE_MS);
+    };
+
     const flush = () => {
-      rafRef.current = null;
+      flushTimerRef.current = null;
       if (!pending.current) return;
       const patch = pending.current;
       const count = pendingCount.current;
       pending.current = null;
       pendingCount.current = 0;
+      lastFlushRef.current = Date.now();
       // Each payload is a complete snapshot — missing fields fall back to LOW/0.
       const next: BikeTelemetry = { ...INITIAL_TELEMETRY, ...patch };
       // Real-bike rule: ignition OFF ⇒ nothing else can be active.
@@ -47,14 +66,16 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
         next.right_leg = false;
       }
       setTelemetry(next);
-      lastTsRef.current = performance.now();
       setLastUpdate(Date.now());
       setHeartbeatTick((t) => t + count);
+      armStaleWatchdog();
     };
 
     const scheduleFlush = () => {
-      if (rafRef.current != null) return;
-      rafRef.current = requestAnimationFrame(flush);
+      if (flushTimerRef.current != null) return;
+      const elapsed = Date.now() - lastFlushRef.current;
+      const delay = Math.max(0, FLUSH_MS - elapsed);
+      flushTimerRef.current = window.setTimeout(flush, delay);
     };
 
     const connect = () => {
@@ -105,7 +126,8 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
     return () => {
       closed = true;
       if (retryRef.current) clearTimeout(retryRef.current);
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (flushTimerRef.current != null) clearTimeout(flushTimerRef.current);
+      if (staleTimerRef.current != null) clearTimeout(staleTimerRef.current);
       wsRef.current?.close();
     };
   }, [esp32Id, bikeId]);
