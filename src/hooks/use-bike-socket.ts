@@ -16,8 +16,6 @@ const STALE_MS = 6000;
  *   ESP32 stream with minimal latency.
  * - A stale watchdog forces everything LOW if the device stops publishing.
  */
- * - A stale watchdog forces everything LOW if the device stops publishing.
- */
 export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
   const [wsState, setWsState] = useState<ConnState>("connecting");
