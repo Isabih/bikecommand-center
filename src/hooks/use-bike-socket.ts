@@ -5,10 +5,6 @@ export type ConnState = "connecting" | "connected" | "disconnected";
 
 /** If no telemetry arrives for this long, everything drops to LOW. */
 const STALE_MS = 6000;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _UNUSED_FLUSH_MS = 0;
-/** Minimum interval between state flushes (throttle, not rAF — keeps working when tab is throttled). */
-const FLUSH_MS = 50;
 
 /**
  * Connects to the FastAPI WebSocket and aggregates the live telemetry stream.
@@ -16,8 +12,10 @@ const FLUSH_MS = 50;
  *
  * Real-time behavior:
  * - Each payload is an authoritative snapshot (missing fields → LOW/0).
- * - Updates flush via setTimeout (max ~20 Hz) so they keep flowing even when
- *   the tab/iframe is background-throttled (rAF would stall there).
+ * - Updates are applied immediately (no throttle) so the UI mirrors the
+ *   ESP32 stream with minimal latency.
+ * - A stale watchdog forces everything LOW if the device stops publishing.
+ */
  * - A stale watchdog forces everything LOW if the device stops publishing.
  */
 export function useBikeSocket(esp32Id?: string, bikeId?: string) {
