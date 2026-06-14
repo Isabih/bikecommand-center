@@ -5,6 +5,8 @@ export type ConnState = "connecting" | "connected" | "disconnected";
 
 /** If no telemetry arrives for this long, everything drops to LOW. */
 const STALE_MS = 6000;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _UNUSED_FLUSH_MS = 0;
 /** Minimum interval between state flushes (throttle, not rAF — keeps working when tab is throttled). */
 const FLUSH_MS = 50;
 
