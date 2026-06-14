@@ -25,12 +25,6 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const [heartbeatTick, setHeartbeatTick] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef<number | null>(null);
-
-  // throttle-coalesced accumulators
-  const pending = useRef<Partial<BikeTelemetry> | null>(null);
-  const pendingCount = useRef(0);
-  const flushTimerRef = useRef<number | null>(null);
-  const lastFlushRef = useRef(0);
   const staleTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -39,23 +33,13 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
     const armStaleWatchdog = () => {
       if (staleTimerRef.current != null) clearTimeout(staleTimerRef.current);
       staleTimerRef.current = window.setTimeout(() => {
-        // No data published recently — everything LOW.
-        pending.current = null;
-        pendingCount.current = 0;
         setTelemetry({ ...INITIAL_TELEMETRY });
       }, STALE_MS);
     };
 
-    const flush = () => {
-      flushTimerRef.current = null;
-      if (!pending.current) return;
-      const patch = pending.current;
-      const count = pendingCount.current;
-      pending.current = null;
-      pendingCount.current = 0;
-      lastFlushRef.current = Date.now();
-      // Each payload is a complete snapshot — missing fields fall back to LOW/0.
-      const next: BikeTelemetry = { ...INITIAL_TELEMETRY, ...patch };
+    const applySnapshot = (data: Partial<BikeTelemetry>) => {
+      // Each payload is a complete authoritative snapshot — missing fields → LOW/0.
+      const next: BikeTelemetry = { ...INITIAL_TELEMETRY, ...data };
       // Real-bike rule: ignition OFF ⇒ nothing else can be active.
       if (!next.ignition) {
         next.speed = 0;
@@ -67,15 +51,8 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       }
       setTelemetry(next);
       setLastUpdate(Date.now());
-      setHeartbeatTick((t) => t + count);
+      setHeartbeatTick((t) => t + 1);
       armStaleWatchdog();
-    };
-
-    const scheduleFlush = () => {
-      if (flushTimerRef.current != null) return;
-      const elapsed = Date.now() - lastFlushRef.current;
-      const delay = Math.max(0, FLUSH_MS - elapsed);
-      flushTimerRef.current = window.setTimeout(flush, delay);
     };
 
     const connect = () => {
@@ -100,19 +77,16 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
             const matchesEsp = esp32Id && data.esp32_id && data.esp32_id === esp32Id;
             const hasAnyFilter = Boolean(esp32Id || bikeId);
             if (hasAnyFilter && !matchesBike && !matchesEsp) return;
-            // Only telemetry frames update bike state. Control/simulation
-            // echoes from the backend are ignored.
             const isTelemetry =
               data._topic === "bike/data" ||
               "speed" in data ||
               "ignition" in data ||
               "heartbeat" in data;
             if (!isTelemetry) return;
-            // Replace pending with the latest snapshot — each payload is
-            // authoritative, no carry-over between messages.
-            pending.current = data;
-            pendingCount.current += 1;
-            scheduleFlush();
+            // Apply immediately — no throttle, no coalescing — so the UI
+            // mirrors the ESP32 stream in real time even before a session
+            // is "started" from the dashboard.
+            applySnapshot(data);
           } catch {
             /* ignore */
           }
@@ -126,15 +100,12 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
     return () => {
       closed = true;
       if (retryRef.current) clearTimeout(retryRef.current);
-      if (flushTimerRef.current != null) clearTimeout(flushTimerRef.current);
       if (staleTimerRef.current != null) clearTimeout(staleTimerRef.current);
       wsRef.current?.close();
     };
   }, [esp32Id, bikeId]);
 
   const reset = () => {
-    pending.current = null;
-    pendingCount.current = 0;
     setTelemetry({ ...INITIAL_TELEMETRY });
     setLastUpdate(Date.now());
   };
