@@ -19,6 +19,13 @@ export type Database = {
           created_at: string
           description: string | null
           esp32_id: string
+          firmware_message: string | null
+          firmware_progress: number
+          firmware_reported_at: string | null
+          firmware_state: string
+          firmware_target_version: string | null
+          firmware_updated_at: string | null
+          firmware_version: string | null
           id: string
           name: string
           session_mode: string
@@ -29,6 +36,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           esp32_id: string
+          firmware_message?: string | null
+          firmware_progress?: number
+          firmware_reported_at?: string | null
+          firmware_state?: string
+          firmware_target_version?: string | null
+          firmware_updated_at?: string | null
+          firmware_version?: string | null
           id?: string
           name: string
           session_mode?: string
@@ -39,6 +53,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           esp32_id?: string
+          firmware_message?: string | null
+          firmware_progress?: number
+          firmware_reported_at?: string | null
+          firmware_state?: string
+          firmware_target_version?: string | null
+          firmware_updated_at?: string | null
+          firmware_version?: string | null
           id?: string
           name?: string
           session_mode?: string
