@@ -31,9 +31,28 @@ export interface Bike {
   description: string | null;
   session_mode: SystemMode;
   session_started_at: string | null;
+  firmware_version: string | null;
+  firmware_reported_at: string | null;
+  firmware_state: string;
+  firmware_progress: number;
+  firmware_message: string | null;
+  firmware_target_version: string | null;
+  firmware_updated_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export interface FirmwareManifest {
+  version: string;
+  url: string;
+  notes?: string;
+  sha256?: string;
+  released_at?: string;
+}
+
+export const FIRMWARE_MANIFEST_URL =
+  "https://raw.githubusercontent.com/Isabih/apaforme-firmware/main/firmwares/apaforme/latest.json";
+
 
 export const API_BASE =
   (typeof window !== "undefined" &&
