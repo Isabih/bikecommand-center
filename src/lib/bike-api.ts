@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { API_BASE, type Bike, type SystemMode } from "./bike-types";
+import { API_BASE, FIRMWARE_MANIFEST_URL, type Bike, type FirmwareManifest, type SystemMode } from "./bike-types";
+
 
 async function post(path: string) {
   try {
@@ -130,4 +131,40 @@ export const bikeApi = {
     const { error } = await supabase.from("mqtt_topics").delete().eq("id", id);
     if (error) throw error;
   },
+
+  // Firmware / OTA
+  getLatestFirmware: async (): Promise<FirmwareManifest> => {
+    const res = await fetch(FIRMWARE_MANIFEST_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Manifest fetch failed: ${res.status}`);
+    return (await res.json()) as FirmwareManifest;
+  },
+  triggerFirmwareUpdate: async (bikeId: string, manifest: FirmwareManifest) => {
+    // Mark target in DB immediately so UI reflects intent
+    await supabase
+      .from("bikes")
+      .update({
+        firmware_target_version: manifest.version,
+        firmware_state: "requested",
+        firmware_progress: 0,
+        firmware_message: "OTA requested",
+        firmware_updated_at: new Date().toISOString(),
+      })
+      .eq("id", bikeId);
+    // Ask backend to publish MQTT OTA command on the bike/ota/update topic
+    await post(`/firmware/update${q(bikeId)}`);
+    // Also send payload via generic /publish as a fallback for backends without /firmware
+    try {
+      await fetch(`${API_BASE}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: "bike/ota/update",
+          payload: { command: "update", version: manifest.version, url: manifest.url, sha256: manifest.sha256 ?? null },
+        }),
+      });
+    } catch {
+      /* backend offline — DB state still updated */
+    }
+  },
 };
+
