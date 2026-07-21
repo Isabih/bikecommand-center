@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as FirmwareRouteImport } from './routes/firmware'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BikesIdIndexRouteImport } from './routes/bikes.$id.index'
 import { Route as BikesIdTopicsRouteImport } from './routes/bikes.$id.topics'
 import { Route as BikesIdKioskRouteImport } from './routes/bikes.$id.kiosk'
 
+const FirmwareRoute = FirmwareRouteImport.update({
+  id: '/firmware',
+  path: '/firmware',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
@@ -44,6 +50,7 @@ const BikesIdKioskRoute = BikesIdKioskRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
+  '/firmware': typeof FirmwareRoute
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
   '/bikes/$id/': typeof BikesIdIndexRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
+  '/firmware': typeof FirmwareRoute
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
   '/bikes/$id': typeof BikesIdIndexRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
+  '/firmware': typeof FirmwareRoute
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
   '/bikes/$id/': typeof BikesIdIndexRoute
@@ -68,15 +77,23 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/docs'
+    | '/firmware'
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
     | '/bikes/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/docs' | '/bikes/$id/kiosk' | '/bikes/$id/topics' | '/bikes/$id'
+  to:
+    | '/'
+    | '/docs'
+    | '/firmware'
+    | '/bikes/$id/kiosk'
+    | '/bikes/$id/topics'
+    | '/bikes/$id'
   id:
     | '__root__'
     | '/'
     | '/docs'
+    | '/firmware'
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
     | '/bikes/$id/'
@@ -85,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsRoute: typeof DocsRoute
+  FirmwareRoute: typeof FirmwareRoute
   BikesIdKioskRoute: typeof BikesIdKioskRoute
   BikesIdTopicsRoute: typeof BikesIdTopicsRoute
   BikesIdIndexRoute: typeof BikesIdIndexRoute
@@ -92,6 +110,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/firmware': {
+      id: '/firmware'
+      path: '/firmware'
+      fullPath: '/firmware'
+      preLoaderRoute: typeof FirmwareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs': {
       id: '/docs'
       path: '/docs'
@@ -133,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsRoute: DocsRoute,
+  FirmwareRoute: FirmwareRoute,
   BikesIdKioskRoute: BikesIdKioskRoute,
   BikesIdTopicsRoute: BikesIdTopicsRoute,
   BikesIdIndexRoute: BikesIdIndexRoute,

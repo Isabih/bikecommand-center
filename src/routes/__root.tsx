@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { Bike, BookOpen, Home } from "lucide-react";
+import { Bike, BookOpen, Home, Rocket } from "lucide-react";
 
 import appCss from "../styles.css?url";
 
@@ -158,6 +158,7 @@ function RootComponent() {
             </Link>
             <nav className="ml-auto flex items-center gap-2 flex-wrap">
               <NavLink to="/" icon={Home} label="Bikes" exact />
+              <NavLink to="/firmware" icon={Rocket} label="Firmware" />
               <NavLink to="/docs" icon={BookOpen} label="Docs" />
             </nav>
           </div>

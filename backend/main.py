@@ -149,6 +149,36 @@ def on_disconnect(client, userdata, *args):
     subscribed_topics.clear()
 
 
+def _handle_ota_status(data: dict) -> None:
+    """Persist firmware/OTA status reports into the bikes table."""
+    if not isinstance(data, dict):
+        return
+    esp32_id = data.get("esp32_id") or data.get("device_id")
+    version = data.get("version") or data.get("firmware_version")
+    state = data.get("state")
+    progress = data.get("progress")
+    message = data.get("message")
+    patch: Dict[str, Any] = {}
+    if version:
+        patch["firmware_version"] = str(version)
+        patch["firmware_reported_at"] = datetime.now(timezone.utc).isoformat()
+    if state:
+        patch["firmware_state"] = str(state)
+    if progress is not None:
+        try:
+            patch["firmware_progress"] = int(progress)
+        except (TypeError, ValueError):
+            pass
+    if message:
+        patch["firmware_message"] = str(message)[:500]
+    if not patch or not esp32_id:
+        return
+    try:
+        sb.table("bikes").update(patch).eq("esp32_id", str(esp32_id)).execute()
+    except Exception as e:
+        print(f"[db] ota status update failed: {e}")
+
+
 def on_message(client, userdata, msg):
     payload_text = msg.payload.decode("utf-8", errors="replace")
     try:
@@ -162,6 +192,10 @@ def on_message(client, userdata, msg):
     db_mark_seen(msg.topic, payload_text)
     db_insert_event(bike_id, msg.topic, data)
 
+    # OTA status → update bikes table so dashboard shows version/progress
+    if "ota" in msg.topic.lower():
+        _handle_ota_status(data if isinstance(data, dict) else {})
+
     # Build outbound message for dashboards
     out = {
         "_topic": msg.topic,
@@ -174,6 +208,7 @@ def on_message(client, userdata, msg):
 
     if loop and loop.is_running():
         asyncio.run_coroutine_threadsafe(broadcast(out), loop)
+
 
 
 mqtt_client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
@@ -306,6 +341,21 @@ def sim_stop(bike_id: Optional[str] = Query(default=None)):
     return res
 
 
+@app.post("/firmware/update")
+def firmware_update(bike_id: Optional[str] = Query(default=None)):
+    """Publish OTA trigger to bike/ota/update. Frontend also POSTs to /publish
+    directly with the manifest url; this endpoint keeps a stable path so
+    dashboards work even without knowing the manifest."""
+    if not bike_id:
+        raise HTTPException(400, "bike_id required")
+    row = sb.table("bikes").select("firmware_target_version, esp32_id").eq("id", bike_id).maybeSingle().execute()
+    target = (row.data or {}).get("firmware_target_version") if row and row.data else None
+    esp = (row.data or {}).get("esp32_id") if row and row.data else None
+    t = topic_for("ota_update", bike_id, "bike/ota/update")
+    payload = {"command": "update", "version": target, "esp32_id": esp}
+    return _publish(t, payload)
+
+
 # Generic publish (for advanced control)
 class PublishIn(BaseModel):
     topic: str
@@ -320,6 +370,7 @@ def publish(body: PublishIn):
     msg = body.payload if isinstance(body.payload, str) else json.dumps(body.payload)
     info = mqtt_client.publish(body.topic, msg, qos=0, retain=body.retain)
     return {"ok": True, "topic": body.topic, "mid": info.mid}
+
 
 
 # ───────────────────────── WEBSOCKET ─────────────────────────
