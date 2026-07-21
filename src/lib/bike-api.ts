@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import { API_BASE, type Bike, type SystemMode } from "./bike-types";
+import { API_BASE, FIRMWARE_MANIFEST_URL, type Bike, type FirmwareManifest, type SystemMode } from "./bike-types";
+
 
 async function post(path: string) {
   try {
