@@ -152,8 +152,9 @@ function FirmwareRow({
   const target = latest?.version;
   const outdated = target && current ? compareVersions(current, target) < 0 : !current;
   const upToDate = target && current && compareVersions(current, target) >= 0;
-  const inProgress = ["requested", "downloading", "installing"].includes(bike.firmware_state);
+  const inProgress = IN_PROGRESS_STATES.has((bike.firmware_state || "").toLowerCase());
   const pct = Math.max(0, Math.min(100, bike.firmware_progress || 0));
+  const online = isDeviceOnline(bike);
 
   return (
     <motion.div
@@ -164,8 +165,17 @@ function FirmwareRow({
     >
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="h-10 w-10 rounded-lg grid place-items-center bg-white/5 border border-white/10 neon-text-cyan">
+          <div className="h-10 w-10 rounded-lg grid place-items-center bg-white/5 border border-white/10 neon-text-cyan relative">
             <Cpu className="h-5 w-5" />
+            <span
+              className={cn(
+                "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full",
+                online
+                  ? "bg-[oklch(0.85_0.22_150)] shadow-[0_0_8px_oklch(0.85_0.22_150)] animate-pulse-dot"
+                  : "bg-white/25",
+              )}
+              title={online ? "Online" : "Offline"}
+            />
           </div>
           <div className="min-w-0">
             <Link
@@ -175,8 +185,19 @@ function FirmwareRow({
             >
               {bike.name}
             </Link>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-mono">
-              {bike.esp32_id}
+            <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground font-mono flex items-center gap-1.5">
+              <span>{bike.esp32_id}</span>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-1.5 py-0 text-[8.5px] normal-case tracking-wider",
+                  online
+                    ? "neon-text-green border-[oklch(0.85_0.22_150/0.4)] bg-[oklch(0.85_0.22_150/0.06)]"
+                    : "text-muted-foreground border-white/10 bg-white/5",
+                )}
+              >
+                {online ? <Wifi className="h-2.5 w-2.5" /> : <WifiOff className="h-2.5 w-2.5" />}
+                {online ? "online" : "offline"}
+              </span>
             </div>
           </div>
         </div>
@@ -198,7 +219,7 @@ function FirmwareRow({
         <div className="min-w-[110px]">
           <StateBadge state={bike.firmware_state || "idle"} />
           {bike.firmware_message && (
-            <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[160px]">
+            <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[160px]" title={bike.firmware_message}>
               {bike.firmware_message}
             </div>
           )}
@@ -231,7 +252,7 @@ function FirmwareRow({
       {inProgress && (
         <div className="mt-3">
           <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">
-            <span>{bike.firmware_state}</span>
+            <span>{PHASE_LABEL[derivePhase(bike.firmware_state, pct)]}</span>
             <span className="tabular-nums neon-text-cyan">{pct}%</span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
@@ -242,6 +263,7 @@ function FirmwareRow({
               transition={{ duration: 0.4 }}
             />
           </div>
+          <PhaseTimeline state={bike.firmware_state} progress={pct} />
         </div>
       )}
     </motion.div>
