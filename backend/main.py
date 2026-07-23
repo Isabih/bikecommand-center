@@ -341,6 +341,18 @@ def sim_stop(bike_id: Optional[str] = Query(default=None)):
     return res
 
 
+@app.post("/audio/start")
+def audio_start(bike_id: Optional[str] = Query(default=None)):
+    t = topic_for("audio", bike_id, "bike/audio")
+    return _publish(t, {"command": "play_start"})
+
+
+@app.post("/audio/stop")
+def audio_stop(bike_id: Optional[str] = Query(default=None)):
+    t = topic_for("audio", bike_id, "bike/audio")
+    return _publish(t, {"command": "play_stop"})
+
+
 @app.post("/firmware/update")
 def firmware_update(bike_id: Optional[str] = Query(default=None)):
     """Publish OTA trigger to bike/ota/update. Frontend also POSTs to /publish
