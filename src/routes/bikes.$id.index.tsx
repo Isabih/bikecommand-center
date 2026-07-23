@@ -17,6 +17,8 @@ import {
   Settings2,
   Square,
   StopCircle,
+  Volume2,
+  VolumeX,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -288,6 +290,25 @@ function BikeDashboard() {
             onAction={async () => {
               await bikeApi.stopSimulation(bike.id);
               reset();
+            }}
+          />
+          <div className="my-2 h-px bg-white/5" />
+          <ControlButton
+            label="PLAY START AUDIO"
+            icon={Volume2}
+            variant="blue"
+            successMsg="Start audio command sent"
+            onAction={async () => {
+              await bikeApi.playStartAudio(bike.id);
+            }}
+          />
+          <ControlButton
+            label="PLAY STOP AUDIO"
+            icon={VolumeX}
+            variant="gray"
+            successMsg="Stop audio command sent"
+            onAction={async () => {
+              await bikeApi.playStopAudio(bike.id);
             }}
           />
         </motion.section>

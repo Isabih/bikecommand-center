@@ -192,8 +192,9 @@ def on_message(client, userdata, msg):
     db_mark_seen(msg.topic, payload_text)
     db_insert_event(bike_id, msg.topic, data)
 
-    # OTA status → update bikes table so dashboard shows version/progress
-    if "ota" in msg.topic.lower():
+    # OTA status → update bikes table so dashboard shows version/progress.
+    # Also capture firmware_version reported inside command/status payloads.
+    if "ota" in msg.topic.lower() or "command/status" in msg.topic.lower():
         _handle_ota_status(data if isinstance(data, dict) else {})
 
     # Build outbound message for dashboards
@@ -339,6 +340,18 @@ def sim_stop(bike_id: Optional[str] = Query(default=None)):
     if bike_id:
         db_set_mode(bike_id, "IDLE")
     return res
+
+
+@app.post("/audio/start")
+def audio_start(bike_id: Optional[str] = Query(default=None)):
+    t = topic_for("audio", bike_id, "bike/audio")
+    return _publish(t, {"command": "play_start"})
+
+
+@app.post("/audio/stop")
+def audio_stop(bike_id: Optional[str] = Query(default=None)):
+    t = topic_for("audio", bike_id, "bike/audio")
+    return _publish(t, {"command": "play_stop"})
 
 
 @app.post("/firmware/update")

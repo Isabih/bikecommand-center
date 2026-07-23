@@ -49,6 +49,11 @@ export const bikeApi = {
   startSimulation: async (bikeId?: string) => { await post(`/simulation/start${q(bikeId)}`); await setMode(bikeId, "SIMULATION"); },
   stopSimulation: async (bikeId?: string) => { await post(`/simulation/stop${q(bikeId)}`); await setMode(bikeId, "IDLE"); },
 
+  // Audio — publishes {"command":"play_start"} / {"command":"play_stop"} to the bike's audio topic.
+  // The ESP32 firmware handles the actual DFPlayer playback (0001.mp3 / 0002.mp3).
+  playStartAudio: async (bikeId?: string) => { await post(`/audio/start${q(bikeId)}`); },
+  playStopAudio: async (bikeId?: string) => { await post(`/audio/stop${q(bikeId)}`); },
+
   // Bikes
   listBikes: async (): Promise<Bike[]> => {
     const { data, error } = await supabase
