@@ -295,6 +295,10 @@ function FirmwarePage() {
     }
   };
 
+  // Track previous firmware_state per bike so we can toast on real transitions
+  // (success / failed / phase change) — driven by the same realtime UPDATE stream.
+  const prevStateRef = useRef<Record<string, { state: string; phase: Phase }>>({});
+
   useEffect(() => {
     refresh(true);
     const ch = supabase
@@ -303,7 +307,24 @@ function FirmwarePage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "bikes" },
         (payload) => {
-          setBikes((prev) => prev.map((b) => (b.id === (payload.new as Bike).id ? (payload.new as Bike) : b)));
+          const next = payload.new as Bike;
+          const prev = prevStateRef.current[next.id];
+          const nextState = (next.firmware_state || "idle").toLowerCase();
+          const nextPhase = derivePhase(next.firmware_state, next.firmware_progress || 0);
+          if (prev && prev.state !== nextState) {
+            if (nextState === "success") {
+              toast.success(`${next.name}: OTA complete — now v${next.firmware_version ?? "?"}`, { duration: 6000 });
+            } else if (nextState === "failed") {
+              toast.error(`${next.name}: OTA failed — ${next.firmware_message ?? "unknown error"}`, { duration: 12000 });
+            } else if (prev.phase !== nextPhase && IN_PROGRESS_STATES.has(nextState)) {
+              toast.message(`${next.name}: ${PHASE_LABEL[nextPhase]}`, {
+                description: next.firmware_message ?? undefined,
+                duration: 3500,
+              });
+            }
+          }
+          prevStateRef.current[next.id] = { state: nextState, phase: nextPhase };
+          setBikes((prev2) => prev2.map((b) => (b.id === next.id ? next : b)));
         },
       )
       .subscribe();
@@ -313,17 +334,40 @@ function FirmwarePage() {
      
   }, []);
 
+  // Seed the state tracker after initial fetch so we don't toast on first render.
+  useEffect(() => {
+    if (Object.keys(prevStateRef.current).length === 0 && bikes.length > 0) {
+      const seed: Record<string, { state: string; phase: Phase }> = {};
+      for (const b of bikes) {
+        seed[b.id] = {
+          state: (b.firmware_state || "idle").toLowerCase(),
+          phase: derivePhase(b.firmware_state, b.firmware_progress || 0),
+        };
+      }
+      prevStateRef.current = seed;
+    }
+  }, [bikes]);
+
+  // Force re-render every 30s so the online/offline pill (time-based) refreshes.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const i = window.setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => window.clearInterval(i);
+  }, []);
+
   const stats = useMemo(() => {
     const total = bikes.length;
     let upToDate = 0;
     let outdated = 0;
     let unknown = 0;
+    let online = 0;
     for (const b of bikes) {
+      if (isDeviceOnline(b)) online++;
       if (!b.firmware_version) unknown++;
       else if (latest && compareVersions(b.firmware_version, latest.version) >= 0) upToDate++;
       else outdated++;
     }
-    return { total, upToDate, outdated, unknown };
+    return { total, upToDate, outdated, unknown, online };
   }, [bikes, latest]);
 
   const outdatedBikes = useMemo(
