@@ -453,6 +453,7 @@ function FirmwarePage() {
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total devices", value: stats.total, tone: "text-foreground" },
+          { label: "Online", value: stats.online, tone: "neon-text-cyan" },
           { label: "Up to date", value: stats.upToDate, tone: "neon-text-green" },
           { label: "Outdated", value: stats.outdated, tone: "neon-text-red" },
           { label: "Unknown", value: stats.unknown, tone: "text-amber-300" },
