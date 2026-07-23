@@ -192,8 +192,9 @@ def on_message(client, userdata, msg):
     db_mark_seen(msg.topic, payload_text)
     db_insert_event(bike_id, msg.topic, data)
 
-    # OTA status → update bikes table so dashboard shows version/progress
-    if "ota" in msg.topic.lower():
+    # OTA status → update bikes table so dashboard shows version/progress.
+    # Also capture firmware_version reported inside command/status payloads.
+    if "ota" in msg.topic.lower() or "command/status" in msg.topic.lower():
         _handle_ota_status(data if isinstance(data, dict) else {})
 
     # Build outbound message for dashboards
