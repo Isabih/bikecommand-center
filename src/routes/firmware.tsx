@@ -9,13 +9,95 @@ import {
   RefreshCw,
   Rocket,
   Wifi,
+  WifiOff,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { bikeApi } from "@/lib/bike-api";
 import { supabase } from "@/integrations/supabase/client";
 import type { Bike, FirmwareManifest } from "@/lib/bike-types";
 import { cn } from "@/lib/utils";
+
+// ─── OTA phase model ──────────────────────────────────────────────────
+const PHASES = ["checking", "downloading", "flashing", "verifying", "rebooting"] as const;
+type Phase = (typeof PHASES)[number];
+const PHASE_LABEL: Record<Phase, string> = {
+  checking: "Checking",
+  downloading: "Downloading",
+  flashing: "Flashing",
+  verifying: "Verifying",
+  rebooting: "Rebooting",
+};
+
+/** Derive a phase from the device's reported state string, with a % fallback. */
+function derivePhase(state: string | null | undefined, progress: number): Phase {
+  const s = (state || "").toLowerCase();
+  if (/(check|request|pending)/.test(s)) return "checking";
+  if (/(download|fetch)/.test(s)) return "downloading";
+  if (/(install|flash|writ)/.test(s)) return "flashing";
+  if (/(verify|validat)/.test(s)) return "verifying";
+  if (/(reboot|restart|boot|success|complete|done)/.test(s)) return "rebooting";
+  // Fallback: derive from progress bucket.
+  if (progress <= 0) return "checking";
+  if (progress < 90) return "downloading";
+  if (progress < 97) return "flashing";
+  if (progress < 100) return "verifying";
+  return "rebooting";
+}
+
+const IN_PROGRESS_STATES = new Set(["requested", "checking", "downloading", "installing", "flashing", "verifying", "rebooting", "pending"]);
+const ONLINE_WINDOW_MS = 120_000; // report firmware_reported_at within 2 min = online
+
+function isDeviceOnline(bike: Bike): boolean {
+  if (!bike.firmware_reported_at) return false;
+  return Date.now() - new Date(bike.firmware_reported_at).getTime() < ONLINE_WINDOW_MS;
+}
+
+function PhaseTimeline({ state, progress }: { state: string | null; progress: number }) {
+  const active = derivePhase(state, progress);
+  const activeIdx = PHASES.indexOf(active);
+  const failed = (state || "").toLowerCase() === "failed";
+  const done = (state || "").toLowerCase() === "success" || progress >= 100;
+  return (
+    <div className="flex items-center gap-1 mt-3">
+      {PHASES.map((p, i) => {
+        const isActive = i === activeIdx && !done && !failed;
+        const isDone = done || i < activeIdx;
+        const isFailed = failed && i === activeIdx;
+        return (
+          <div key={p} className="flex-1 min-w-0">
+            <div
+              className={cn(
+                "h-1 rounded-full transition-colors",
+                isFailed
+                  ? "bg-[oklch(0.7_0.26_25)] shadow-[0_0_8px_oklch(0.7_0.26_25/0.7)]"
+                  : isDone
+                    ? "bg-[oklch(0.85_0.22_150)]"
+                    : isActive
+                      ? "bg-[oklch(0.85_0.18_200)] animate-pulse"
+                      : "bg-white/8",
+              )}
+            />
+            <div
+              className={cn(
+                "text-[8.5px] uppercase tracking-[0.18em] mt-1 truncate text-center",
+                isFailed
+                  ? "neon-text-red"
+                  : isActive
+                    ? "neon-text-cyan"
+                    : isDone
+                      ? "neon-text-green"
+                      : "text-muted-foreground/60",
+              )}
+            >
+              {PHASE_LABEL[p]}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/firmware")({
   component: FirmwarePage,
