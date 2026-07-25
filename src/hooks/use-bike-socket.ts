@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WS_URL, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types";
 
 export type ConnState = "connecting" | "connected" | "disconnected";
 
 /** If no telemetry arrives for this long, everything drops to LOW. */
-const STALE_MS = 6000;
+const STALE_MS = 2000;
+/** After a local command (Stop/Start/Sim), ignore in-flight stale
+ *  payloads that contradict the new mode for this long. */
+const COMMAND_LOCK_MS = 1000;
 
 /**
  * Connects to the FastAPI WebSocket and aggregates the live telemetry stream.
@@ -12,9 +15,11 @@ const STALE_MS = 6000;
  *
  * Real-time behavior:
  * - Each payload is an authoritative snapshot (missing fields → LOW/0).
- * - Updates are applied immediately (no throttle) so the UI mirrors the
- *   ESP32 stream with minimal latency.
- * - A stale watchdog forces everything LOW if the device stops publishing.
+ * - Duplicate consecutive snapshots are dropped (no re-render noise).
+ * - Ignition OFF forces every other field to OFF/0 (real-bike gate).
+ * - `commandLock(mode)` freezes the UI to the just-issued mode for 1s so
+ *   stale in-flight telemetry from the previous mode cannot flap it back.
+ * - A 2s stale watchdog resets state when the device stops publishing.
  */
 export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
@@ -24,6 +29,11 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef<number | null>(null);
   const staleTimerRef = useRef<number | null>(null);
+  const lastSnapshotRef = useRef<string>("");
+  /** After Stop/Start, discard incoming payloads until this timestamp. */
+  const commandLockUntilRef = useRef<number>(0);
+  /** What mode the user just commanded — during lock, force UI to it. */
+  const commandModeRef = useRef<"IDLE" | "ACTIVE" | "SIMULATION" | null>(null);
 
   useEffect(() => {
     let closed = false;
@@ -32,13 +42,23 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       if (staleTimerRef.current != null) clearTimeout(staleTimerRef.current);
       staleTimerRef.current = window.setTimeout(() => {
         setTelemetry({ ...INITIAL_TELEMETRY });
+        lastSnapshotRef.current = "";
       }, STALE_MS);
     };
 
     const applySnapshot = (data: Partial<BikeTelemetry>) => {
-      // Each payload is a complete authoritative snapshot — missing fields → LOW/0.
+      const now = Date.now();
+      // Command lock: during the ~1s after a local command, ignore any
+      // payload that contradicts the commanded mode.
+      if (now < commandLockUntilRef.current && commandModeRef.current === "IDLE") {
+        // We just told the bike to stop → drop anything claiming it's on.
+        if (data.ignition) return;
+      }
+
+      // Each payload is a complete authoritative snapshot — missing → LOW/0.
       const next: BikeTelemetry = { ...INITIAL_TELEMETRY, ...data };
-      // Real-bike rule: ignition OFF ⇒ nothing else can be active.
+
+      // Hard ignition gate: ignition OFF ⇒ nothing else can be active.
       if (!next.ignition) {
         next.speed = 0;
         next.brake = false;
@@ -47,8 +67,17 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
         next.left_leg = false;
         next.right_leg = false;
       }
+
+      // Payload debounce: drop exact duplicate consecutive snapshots.
+      const sig = JSON.stringify(next);
+      if (sig === lastSnapshotRef.current) {
+        armStaleWatchdog();
+        return;
+      }
+      lastSnapshotRef.current = sig;
+
       setTelemetry(next);
-      setLastUpdate(Date.now());
+      setLastUpdate(now);
       setHeartbeatTick((t) => t + 1);
       armStaleWatchdog();
     };
@@ -81,9 +110,6 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
               "ignition" in data ||
               "heartbeat" in data;
             if (!isTelemetry) return;
-            // Apply immediately — no throttle, no coalescing — so the UI
-            // mirrors the ESP32 stream in real time even before a session
-            // is "started" from the dashboard.
             applySnapshot(data);
           } catch {
             /* ignore */
@@ -103,10 +129,20 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
     };
   }, [esp32Id, bikeId]);
 
-  const reset = () => {
+  /** Called by Stop / Turn-Off actions: instantly zeroes UI and holds it. */
+  const reset = useCallback(() => {
+    commandLockUntilRef.current = Date.now() + COMMAND_LOCK_MS;
+    commandModeRef.current = "IDLE";
+    lastSnapshotRef.current = "";
     setTelemetry({ ...INITIAL_TELEMETRY });
     setLastUpdate(Date.now());
-  };
+  }, []);
 
-  return { telemetry, wsState, lastUpdate, heartbeatTick, reset };
+  /** Called by Start / Simulation actions to lock the commanded mode briefly. */
+  const commandLock = useCallback((mode: "IDLE" | "ACTIVE" | "SIMULATION") => {
+    commandLockUntilRef.current = Date.now() + COMMAND_LOCK_MS;
+    commandModeRef.current = mode;
+  }, []);
+
+  return { telemetry, wsState, lastUpdate, heartbeatTick, reset, commandLock };
 }
