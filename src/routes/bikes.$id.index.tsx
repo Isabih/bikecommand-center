@@ -258,6 +258,7 @@ function BikeDashboard() {
             active={bikeActive}
             successMsg="Bike session started"
             onAction={async () => {
+              commandLock("ACTIVE");
               await bikeApi.startBike(bike.id);
             }}
           />
@@ -267,8 +268,8 @@ function BikeDashboard() {
             variant="red"
             successMsg="Bike session stopped — telemetry reset"
             onAction={async () => {
-              await bikeApi.stopBike(bike.id);
               reset();
+              await bikeApi.stopBike(bike.id);
             }}
           />
           <div className="my-2 h-px bg-white/5" />
@@ -279,6 +280,7 @@ function BikeDashboard() {
             active={simActive}
             successMsg="Simulation started"
             onAction={async () => {
+              commandLock("SIMULATION");
               await bikeApi.startSimulation(bike.id);
             }}
           />
