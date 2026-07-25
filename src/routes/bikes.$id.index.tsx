@@ -290,8 +290,8 @@ function BikeDashboard() {
             variant="gray"
             successMsg="Simulation stopped — telemetry reset"
             onAction={async () => {
-              await bikeApi.stopSimulation(bike.id);
               reset();
+              await bikeApi.stopSimulation(bike.id);
             }}
           />
           <div className="my-2 h-px bg-white/5" />
