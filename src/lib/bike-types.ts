@@ -50,6 +50,18 @@ export interface FirmwareManifest {
   released_at?: string;
 }
 
+export interface FirmwareVersionRow {
+  id: string;
+  version: string;
+  url: string;
+  sha256: string | null;
+  notes: string | null;
+  released_at: string | null;
+  is_latest: boolean;
+  source: string;
+  fetched_at: string;
+}
+
 export const FIRMWARE_MANIFEST_URL =
   "https://raw.githubusercontent.com/Isabih/apaforme-firmware/main/firmwares/apaforme/latest.json";
 
