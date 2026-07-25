@@ -112,7 +112,7 @@ function BikeDashboard() {
     };
   }, [id]);
 
-  const { telemetry, wsState, lastUpdate, heartbeatTick, reset } = useBikeSocket(bike?.esp32_id, id);
+  const { telemetry, wsState, lastUpdate, heartbeatTick, reset, commandLock } = useBikeSocket(bike?.esp32_id, id);
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
     if (heartbeatTick === 0) return;
