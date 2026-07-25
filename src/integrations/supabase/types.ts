@@ -20,6 +20,7 @@ export type Database = {
           description: string | null
           esp32_id: string
           firmware_message: string | null
+          firmware_pinned_version: string | null
           firmware_progress: number
           firmware_reported_at: string | null
           firmware_state: string
@@ -37,6 +38,7 @@ export type Database = {
           description?: string | null
           esp32_id: string
           firmware_message?: string | null
+          firmware_pinned_version?: string | null
           firmware_progress?: number
           firmware_reported_at?: string | null
           firmware_state?: string
@@ -54,6 +56,7 @@ export type Database = {
           description?: string | null
           esp32_id?: string
           firmware_message?: string | null
+          firmware_pinned_version?: string | null
           firmware_progress?: number
           firmware_reported_at?: string | null
           firmware_state?: string
@@ -65,6 +68,51 @@ export type Database = {
           session_mode?: string
           session_started_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      firmware_versions: {
+        Row: {
+          created_at: string
+          fetched_at: string
+          id: string
+          is_latest: boolean
+          manifest: Json | null
+          notes: string | null
+          released_at: string | null
+          sha256: string | null
+          source: string
+          updated_at: string
+          url: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          is_latest?: boolean
+          manifest?: Json | null
+          notes?: string | null
+          released_at?: string | null
+          sha256?: string | null
+          source?: string
+          updated_at?: string
+          url: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          is_latest?: boolean
+          manifest?: Json | null
+          notes?: string | null
+          released_at?: string | null
+          sha256?: string | null
+          source?: string
+          updated_at?: string
+          url?: string
+          version?: string
         }
         Relationships: []
       }
