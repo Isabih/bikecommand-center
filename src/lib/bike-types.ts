@@ -37,6 +37,7 @@ export interface Bike {
   firmware_progress: number;
   firmware_message: string | null;
   firmware_target_version: string | null;
+  firmware_pinned_version: string | null;
   firmware_updated_at: string | null;
   created_at: string;
   updated_at: string;
