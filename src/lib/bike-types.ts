@@ -37,6 +37,7 @@ export interface Bike {
   firmware_progress: number;
   firmware_message: string | null;
   firmware_target_version: string | null;
+  firmware_pinned_version: string | null;
   firmware_updated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -48,6 +49,18 @@ export interface FirmwareManifest {
   notes?: string;
   sha256?: string;
   released_at?: string;
+}
+
+export interface FirmwareVersionRow {
+  id: string;
+  version: string;
+  url: string;
+  sha256: string | null;
+  notes: string | null;
+  released_at: string | null;
+  is_latest: boolean;
+  source: string;
+  fetched_at: string;
 }
 
 export const FIRMWARE_MANIFEST_URL =

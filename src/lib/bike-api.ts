@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { API_BASE, FIRMWARE_MANIFEST_URL, type Bike, type FirmwareManifest, type SystemMode } from "./bike-types";
+import { API_BASE, FIRMWARE_MANIFEST_URL, type Bike, type FirmwareManifest, type FirmwareVersionRow, type SystemMode } from "./bike-types";
 
 
 async function post(path: string) {
@@ -138,10 +138,54 @@ export const bikeApi = {
   },
 
   // Firmware / OTA
+  listAvailableFirmware: async (): Promise<FirmwareVersionRow[]> => {
+    const { data, error } = await supabase
+      .from("firmware_versions")
+      .select("*")
+      .order("released_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as FirmwareVersionRow[];
+  },
+  /**
+   * Returns the cached "latest" manifest. Falls back to raw GitHub if the
+   * cache is empty (first boot before the hourly cron has run).
+   */
   getLatestFirmware: async (): Promise<FirmwareManifest> => {
+    const { data } = await supabase
+      .from("firmware_versions")
+      .select("*")
+      .eq("is_latest", true)
+      .maybeSingle();
+    if (data) {
+      return {
+        version: data.version,
+        url: data.url,
+        sha256: data.sha256 ?? undefined,
+        notes: data.notes ?? undefined,
+        released_at: data.released_at ?? undefined,
+      };
+    }
     const res = await fetch(FIRMWARE_MANIFEST_URL, { cache: "no-store" });
     if (!res.ok) throw new Error(`Manifest fetch failed: ${res.status}`);
     return (await res.json()) as FirmwareManifest;
+  },
+  /** Ask the backend to re-poll GitHub now (bypasses the hourly cron). */
+  refreshFirmwareCache: async (): Promise<{ ok: boolean; upserted?: number; error?: string }> => {
+    try {
+      const res = await fetch("/api/public/hooks/refresh-firmware", { method: "POST" });
+      return (await res.json()) as { ok: boolean; upserted?: number; error?: string };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+  },
+  /** Pin (or clear) the firmware version a bike should install on the next update. */
+  setBikeFirmwareTarget: async (bikeId: string, version: string | null) => {
+    const { error } = await supabase
+      .from("bikes")
+      .update({ firmware_pinned_version: version })
+      .eq("id", bikeId);
+    if (error) throw error;
   },
   triggerFirmwareUpdate: async (bikeId: string, manifest: FirmwareManifest) => {
     // Mark target in DB immediately so UI reflects intent

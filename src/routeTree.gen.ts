@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BikesIdIndexRouteImport } from './routes/bikes.$id.index'
 import { Route as BikesIdTopicsRouteImport } from './routes/bikes.$id.topics'
 import { Route as BikesIdKioskRouteImport } from './routes/bikes.$id.kiosk'
+import { Route as ApiPublicHooksRefreshFirmwareRouteImport } from './routes/api/public/hooks/refresh-firmware'
 
 const FirmwareRoute = FirmwareRouteImport.update({
   id: '/firmware',
@@ -46,6 +47,12 @@ const BikesIdKioskRoute = BikesIdKioskRouteImport.update({
   path: '/bikes/$id/kiosk',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRefreshFirmwareRoute =
+  ApiPublicHooksRefreshFirmwareRouteImport.update({
+    id: '/api/public/hooks/refresh-firmware',
+    path: '/api/public/hooks/refresh-firmware',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByFullPath {
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
   '/bikes/$id/': typeof BikesIdIndexRoute
+  '/api/public/hooks/refresh-firmware': typeof ApiPublicHooksRefreshFirmwareRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +70,7 @@ export interface FileRoutesByTo {
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
   '/bikes/$id': typeof BikesIdIndexRoute
+  '/api/public/hooks/refresh-firmware': typeof ApiPublicHooksRefreshFirmwareRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +80,7 @@ export interface FileRoutesById {
   '/bikes/$id/kiosk': typeof BikesIdKioskRoute
   '/bikes/$id/topics': typeof BikesIdTopicsRoute
   '/bikes/$id/': typeof BikesIdIndexRoute
+  '/api/public/hooks/refresh-firmware': typeof ApiPublicHooksRefreshFirmwareRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +91,7 @@ export interface FileRouteTypes {
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
     | '/bikes/$id/'
+    | '/api/public/hooks/refresh-firmware'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +100,7 @@ export interface FileRouteTypes {
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
     | '/bikes/$id'
+    | '/api/public/hooks/refresh-firmware'
   id:
     | '__root__'
     | '/'
@@ -97,6 +109,7 @@ export interface FileRouteTypes {
     | '/bikes/$id/kiosk'
     | '/bikes/$id/topics'
     | '/bikes/$id/'
+    | '/api/public/hooks/refresh-firmware'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +119,7 @@ export interface RootRouteChildren {
   BikesIdKioskRoute: typeof BikesIdKioskRoute
   BikesIdTopicsRoute: typeof BikesIdTopicsRoute
   BikesIdIndexRoute: typeof BikesIdIndexRoute
+  ApiPublicHooksRefreshFirmwareRoute: typeof ApiPublicHooksRefreshFirmwareRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +166,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BikesIdKioskRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/refresh-firmware': {
+      id: '/api/public/hooks/refresh-firmware'
+      path: '/api/public/hooks/refresh-firmware'
+      fullPath: '/api/public/hooks/refresh-firmware'
+      preLoaderRoute: typeof ApiPublicHooksRefreshFirmwareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,17 +183,8 @@ const rootRouteChildren: RootRouteChildren = {
   BikesIdKioskRoute: BikesIdKioskRoute,
   BikesIdTopicsRoute: BikesIdTopicsRoute,
   BikesIdIndexRoute: BikesIdIndexRoute,
+  ApiPublicHooksRefreshFirmwareRoute: ApiPublicHooksRefreshFirmwareRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
