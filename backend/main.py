@@ -298,6 +298,44 @@ def topics_resync():
     return sync_subscriptions()
 
 
+# ───────────────────────── REST: BROKER CONFIG ─────────────────────────
+class MqttConfigIn(BaseModel):
+    host: str
+    port: int = 1884
+
+
+@app.get("/config/mqtt")
+def get_mqtt_config():
+    return {"host": MQTT_HOST, "port": MQTT_PORT, "connected": mqtt_client.is_connected()}
+
+
+@app.post("/config/mqtt")
+def set_mqtt_config(body: MqttConfigIn):
+    """Repoint the bridge at another Mosquitto broker at runtime.
+
+    Called by the dashboard Settings panel. The change lives for the life of
+    the process — persist it in .env (MQTT_HOST / MQTT_PORT) to survive a restart.
+    """
+    global MQTT_HOST, MQTT_PORT
+    host = body.host.strip()
+    if not host:
+        raise HTTPException(400, "host is required")
+    if not (1 <= body.port <= 65535):
+        raise HTTPException(400, "port out of range")
+
+    MQTT_HOST, MQTT_PORT = host, body.port
+    subscribed_topics.clear()
+    try:
+        try:
+            mqtt_client.disconnect()
+        except Exception:
+            pass
+        mqtt_client.connect(MQTT_HOST, MQTT_PORT, 60)
+    except Exception as e:
+        raise HTTPException(502, f"cannot reach broker {MQTT_HOST}:{MQTT_PORT}: {e}")
+    return {"ok": True, "broker": f"{MQTT_HOST}:{MQTT_PORT}"}
+
+
 # ───────────────────────── REST: BIKE CONTROL ─────────────────────────
 def _publish(topic_value: str, payload: dict) -> dict:
     if not mqtt_client.is_connected():
