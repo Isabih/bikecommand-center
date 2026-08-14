@@ -29,9 +29,26 @@ interface GhContent {
 interface Manifest {
   version?: string;
   url?: string;
+  /** Real repo manifests use `firmware_url`. */
+  firmware_url?: string;
   sha256?: string;
+  size?: number;
   notes?: string;
+  product?: string;
+  mandatory?: boolean;
   released_at?: string;
+  /** Real repo manifests use `release_date`. */
+  release_date?: string;
+}
+
+function manifestUrl(d: Manifest): string | null {
+  return d.firmware_url ?? d.url ?? null;
+}
+function manifestReleased(d: Manifest): string | null {
+  const raw = d.released_at ?? d.release_date;
+  if (!raw) return null;
+  const t = new Date(raw);
+  return Number.isNaN(t.getTime()) ? null : t.toISOString();
 }
 
 async function ghJson<T>(url: string): Promise<T> {
@@ -44,6 +61,7 @@ async function ghJson<T>(url: string): Promise<T> {
   if (!res.ok) throw new Error(`GitHub ${url} → ${res.status}`);
   return (await res.json()) as T;
 }
+
 
 async function runRefresh() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
