@@ -61,11 +61,15 @@ export function setConfig(patch: Partial<RuntimeConfig>): RuntimeConfig {
 
 function subscribe(cb: () => void) {
   if (typeof window === "undefined") return () => {};
-  window.addEventListener(EVT, cb);
-  window.addEventListener("storage", cb);
+  const handler = () => {
+    cache = null;
+    cb();
+  };
+  window.addEventListener(EVT, handler);
+  window.addEventListener("storage", handler);
   return () => {
-    window.removeEventListener(EVT, cb);
-    window.removeEventListener("storage", cb);
+    window.removeEventListener(EVT, handler);
+    window.removeEventListener("storage", handler);
   };
 }
 

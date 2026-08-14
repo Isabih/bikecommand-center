@@ -67,9 +67,5 @@ export const FIRMWARE_MANIFEST_URL =
   "https://raw.githubusercontent.com/Isabih/apaforme-firmware/main/firmwares/apaforme/latest.json";
 
 
-export const API_BASE =
-  (typeof window !== "undefined" &&
-    (window as unknown as { __BIKE_API__?: string }).__BIKE_API__) ||
-  "http://localhost:8000";
-
-export const WS_URL = API_BASE.replace(/^http/, "ws") + "/ws";
+// Connection settings are runtime-configurable from the dashboard Settings page.
+export { getApiBase, getWsUrl } from "./runtime-config";

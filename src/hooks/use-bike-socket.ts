@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WS_URL, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types";
+import { getWsUrl, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types";
 
 export type ConnState = "connecting" | "connected" | "disconnected";
 
@@ -86,7 +86,7 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       if (closed) return;
       setWsState("connecting");
       try {
-        const ws = new WebSocket(WS_URL);
+        const ws = new WebSocket(getWsUrl());
         wsRef.current = ws;
         ws.onopen = () => setWsState("connected");
         ws.onclose = () => {

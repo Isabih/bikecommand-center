@@ -1,10 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
-import { API_BASE, FIRMWARE_MANIFEST_URL, type Bike, type FirmwareManifest, type FirmwareVersionRow, type SystemMode } from "./bike-types";
+import { getApiBase, FIRMWARE_MANIFEST_URL, type Bike, type FirmwareManifest, type FirmwareVersionRow, type SystemMode } from "./bike-types";
 
 
 async function post(path: string) {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { method: "POST" });
+    const res = await fetch(`${getApiBase()}${path}`, { method: "POST" });
     if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
     return res.json().catch(() => ({}));
   } catch (e) {
@@ -203,7 +203,7 @@ export const bikeApi = {
     await post(`/firmware/update${q(bikeId)}`);
     // Also send payload via generic /publish as a fallback for backends without /firmware
     try {
-      await fetch(`${API_BASE}/publish`, {
+      await fetch(`${getApiBase()}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
