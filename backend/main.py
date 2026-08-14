@@ -298,6 +298,44 @@ def topics_resync():
     return sync_subscriptions()
 
 
+# ───────────────────────── REST: BROKER CONFIG ─────────────────────────
+class MqttConfigIn(BaseModel):
+    host: str
+    port: int = 1884
+
+
+@app.get("/config/mqtt")
+def get_mqtt_config():
+    return {"host": MQTT_HOST, "port": MQTT_PORT, "connected": mqtt_client.is_connected()}
+
+
+@app.post("/config/mqtt")
+def set_mqtt_config(body: MqttConfigIn):
+    """Repoint the bridge at another Mosquitto broker at runtime.
+
+    Called by the dashboard Settings panel. The change lives for the life of
+    the process — persist it in .env (MQTT_HOST / MQTT_PORT) to survive a restart.
+    """
+    global MQTT_HOST, MQTT_PORT
+    host = body.host.strip()
+    if not host:
+        raise HTTPException(400, "host is required")
+    if not (1 <= body.port <= 65535):
+        raise HTTPException(400, "port out of range")
+
+    MQTT_HOST, MQTT_PORT = host, body.port
+    subscribed_topics.clear()
+    try:
+        try:
+            mqtt_client.disconnect()
+        except Exception:
+            pass
+        mqtt_client.connect(MQTT_HOST, MQTT_PORT, 60)
+    except Exception as e:
+        raise HTTPException(502, f"cannot reach broker {MQTT_HOST}:{MQTT_PORT}: {e}")
+    return {"ok": True, "broker": f"{MQTT_HOST}:{MQTT_PORT}"}
+
+
 # ───────────────────────── REST: BIKE CONTROL ─────────────────────────
 def _publish(topic_value: str, payload: dict) -> dict:
     if not mqtt_client.is_connected():
@@ -364,8 +402,31 @@ def firmware_update(bike_id: Optional[str] = Query(default=None)):
     row = sb.table("bikes").select("firmware_target_version, esp32_id").eq("id", bike_id).maybeSingle().execute()
     target = (row.data or {}).get("firmware_target_version") if row and row.data else None
     esp = (row.data or {}).get("esp32_id") if row and row.data else None
+    if not target:
+        raise HTTPException(400, "no firmware target version set for this bike")
+
+    fw = (
+        sb.table("firmware_versions")
+        .select("version, url, sha256, manifest")
+        .eq("version", target)
+        .maybeSingle()
+        .execute()
+    )
+    fw_row = fw.data if fw and fw.data else None
+    if not fw_row or not fw_row.get("url"):
+        raise HTTPException(404, f"firmware {target} not found in cache — refresh firmware list first")
+
+    manifest = fw_row.get("manifest") or {}
     t = topic_for("ota_update", bike_id, "bike/ota/update")
-    payload = {"command": "update", "version": target, "esp32_id": esp}
+    payload = {
+        "command": "update",
+        "esp32_id": esp,
+        "version": fw_row["version"],
+        "firmware_url": fw_row["url"],
+        "url": fw_row["url"],
+        "sha256": fw_row.get("sha256"),
+        "size": manifest.get("size"),
+    }
     return _publish(t, payload)
 
 

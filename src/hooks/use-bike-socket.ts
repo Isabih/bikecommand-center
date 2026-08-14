@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WS_URL, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types";
+import { getWsUrl, INITIAL_TELEMETRY, type BikeTelemetry } from "@/lib/bike-types";
+import { useRuntimeConfig } from "@/lib/runtime-config";
 
 export type ConnState = "connecting" | "connected" | "disconnected";
 
@@ -22,6 +23,8 @@ const COMMAND_LOCK_MS = 1000;
  * - A 2s stale watchdog resets state when the device stops publishing.
  */
 export function useBikeSocket(esp32Id?: string, bikeId?: string) {
+  // Reconnect whenever the operator repoints the dashboard at another bridge.
+  const { apiBase } = useRuntimeConfig();
   const [telemetry, setTelemetry] = useState<BikeTelemetry>(INITIAL_TELEMETRY);
   const [wsState, setWsState] = useState<ConnState>("connecting");
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
@@ -86,7 +89,7 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       if (closed) return;
       setWsState("connecting");
       try {
-        const ws = new WebSocket(WS_URL);
+        const ws = new WebSocket(getWsUrl());
         wsRef.current = ws;
         ws.onopen = () => setWsState("connected");
         ws.onclose = () => {
@@ -127,7 +130,7 @@ export function useBikeSocket(esp32Id?: string, bikeId?: string) {
       if (staleTimerRef.current != null) clearTimeout(staleTimerRef.current);
       wsRef.current?.close();
     };
-  }, [esp32Id, bikeId]);
+  }, [esp32Id, bikeId, apiBase]);
 
   /** Called by Stop / Turn-Off actions: instantly zeroes UI and holds it. */
   const reset = useCallback(() => {
