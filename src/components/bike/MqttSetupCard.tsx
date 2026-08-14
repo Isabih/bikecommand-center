@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Copy, Radio, Server, Settings2, Terminal } from "lucide-react";
 import { toast } from "sonner";
-import { API_BASE, WS_URL } from "@/lib/bike-types";
+import { getApiBase, getWsUrl } from "@/lib/bike-types";
 
 const INSTALL = `# macOS
 brew install mosquitto
@@ -97,9 +97,9 @@ export function MqttSetupCard() {
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-muted-foreground font-mono">
           <Server className="h-3.5 w-3.5 neon-text-cyan" />
-          API: <span className="text-foreground">{API_BASE}</span>
+          API: <span className="text-foreground">{getApiBase()}</span>
           <span className="mx-1 opacity-40">·</span>
-          WS: <span className="text-foreground">{WS_URL}</span>
+          WS: <span className="text-foreground">{getWsUrl()}</span>
         </div>
       </div>
 
