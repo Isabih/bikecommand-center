@@ -187,9 +187,14 @@ export const bikeApi = {
       .eq("id", bikeId);
     if (error) throw error;
   },
+  /**
+   * Marks the OTA intent in the database, then asks the bridge to publish the
+   * command on the bike's *configured* ota_update topic. The bridge resolves
+   * the topic from `mqtt_topics` and fills the payload from the cached GitHub
+   * manifest (version + firmware_url + sha256) — no hardcoded topics here.
+   */
   triggerFirmwareUpdate: async (bikeId: string, manifest: FirmwareManifest) => {
-    // Mark target in DB immediately so UI reflects intent
-    await supabase
+    const { error } = await supabase
       .from("bikes")
       .update({
         firmware_target_version: manifest.version,
@@ -199,21 +204,15 @@ export const bikeApi = {
         firmware_updated_at: new Date().toISOString(),
       })
       .eq("id", bikeId);
-    // Ask backend to publish MQTT OTA command on the bike/ota/update topic
-    await post(`/firmware/update${q(bikeId)}`);
-    // Also send payload via generic /publish as a fallback for backends without /firmware
-    try {
-      await fetch(`${getApiBase()}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          topic: "bike/ota/update",
-          payload: { command: "update", version: manifest.version, url: manifest.url, sha256: manifest.sha256 ?? null },
-        }),
-      });
-    } catch {
-      /* backend offline — DB state still updated */
+    if (error) throw error;
+
+    const res = await fetch(`${getApiBase()}/firmware/update${q(bikeId)}`, { method: "POST" });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Bridge refused OTA (${res.status}) ${detail.slice(0, 160)}`);
     }
+    return (await res.json().catch(() => ({}))) as { topic?: string };
   },
 };
+
 
