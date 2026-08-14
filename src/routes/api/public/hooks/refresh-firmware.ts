@@ -72,38 +72,58 @@ async function runRefresh() {
   if (!url || !key) throw new Error("Supabase env not configured");
   const sb = createClient(url, key, { auth: { persistSession: false } });
 
-  // 1. list all manifest json files
+  // 1. list the manifest directory
   const listing = await ghJson<GhContent[]>(GH_API);
   const jsonFiles = listing.filter((f) => f.type === "file" && f.name.endsWith(".json"));
+  const versionDirs = listing.filter((f) => f.type === "dir" && /^v?\d+\.\d+/.test(f.name));
 
-  // 2. fetch each manifest
+  // 2. fetch every root-level manifest (latest.json, x.y.z.json, …)
   const manifests: Array<{ file: string; data: Manifest }> = [];
   for (const f of jsonFiles) {
     if (!f.download_url) continue;
     try {
-      const data = await ghJson<Manifest>(f.download_url);
-      manifests.push({ file: f.name, data });
+      manifests.push({ file: f.name, data: await ghJson<Manifest>(f.download_url) });
     } catch (e) {
       console.warn(`[refresh-firmware] skip ${f.name}: ${(e as Error).message}`);
     }
   }
 
-  // 3. resolve which version is "latest": prefer latest.json's version field
+  // 3. walk each version folder: use its manifest.json when present,
+  //    otherwise synthesise one from firmware.bin.
+  for (const dir of versionDirs) {
+    const version = dir.name.replace(/^v/, "");
+    if (manifests.some((m) => m.data.version === version)) continue;
+    try {
+      const files = await ghJson<GhContent[]>(`${GH_API}/${dir.name}`);
+      const manifestFile = files.find((f) => f.type === "file" && f.name.endsWith(".json"));
+      if (manifestFile?.download_url) {
+        manifests.push({ file: `${dir.name}/${manifestFile.name}`, data: await ghJson<Manifest>(manifestFile.download_url) });
+        continue;
+      }
+      const bin = files.find((f) => f.name === "firmware.bin" && f.download_url);
+      if (bin?.download_url) {
+        manifests.push({ file: `${dir.name}/firmware.bin`, data: { version, firmware_url: bin.download_url } });
+      }
+    } catch (e) {
+      console.warn(`[refresh-firmware] skip dir ${dir.name}: ${(e as Error).message}`);
+    }
+  }
+
+  // 4. resolve which version is "latest": latest.json's version field wins
   const latestFile = manifests.find((m) => m.file.toLowerCase() === "latest.json");
   const latestVersion = latestFile?.data.version;
 
-  // 4. upsert (skip latest.json alias — it duplicates a real version file)
   const rows = manifests
-    .filter((m) => m.file.toLowerCase() !== "latest.json" || !manifests.some((x) => x !== m && x.data.version === m.data.version))
     .map((m) => {
       const d = m.data;
-      if (!d.version || !d.url) return null;
+      const binUrl = manifestUrl(d);
+      if (!d.version || !binUrl) return null;
       return {
         version: String(d.version),
-        url: String(d.url),
+        url: binUrl,
         sha256: d.sha256 ?? null,
         notes: d.notes ?? null,
-        released_at: d.released_at ?? null,
+        released_at: manifestReleased(d),
         is_latest: latestVersion ? d.version === latestVersion : false,
         source: "github",
         manifest: d as unknown as Record<string, unknown>,
@@ -112,12 +132,19 @@ async function runRefresh() {
     })
     .filter(Boolean) as Array<Record<string, unknown>>;
 
-  // De-duplicate by version (in case latest.json + a versioned file both exist)
+  // De-duplicate by version, preferring the entry with the most metadata.
   const byVersion = new Map<string, Record<string, unknown>>();
-  for (const r of rows) byVersion.set(String(r.version), r);
+  for (const r of rows) {
+    const key = String(r.version);
+    const prev = byVersion.get(key);
+    if (!prev || Object.values(r).filter(Boolean).length > Object.values(prev).filter(Boolean).length) {
+      byVersion.set(key, { ...prev, ...r });
+    }
+  }
   const finalRows = Array.from(byVersion.values());
 
   if (finalRows.length === 0) return { ok: true, upserted: 0, note: "no manifests found" };
+
 
   // Reset is_latest before upserting, then upsert with per-row flag.
   await sb.from("firmware_versions").update({ is_latest: false }).neq("id", "00000000-0000-0000-0000-000000000000");
